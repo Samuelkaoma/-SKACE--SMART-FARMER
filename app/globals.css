@@ -1,0 +1,225 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.14 0.05 155);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.14 0.05 155);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.14 0.05 155);
+  --primary: oklch(0.55 0.15 162);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.74 0.12 165);
+  --secondary-foreground: oklch(0.14 0.05 155);
+  --muted: oklch(0.92 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.55 0.15 162);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9 0.02 165);
+  --input: oklch(0.95 0.01 165);
+  --ring: oklch(0.55 0.15 162);
+  --chart-1: oklch(0.55 0.15 162);
+  --chart-2: oklch(0.75 0.12 165);
+  --chart-3: oklch(0.35 0.08 142);
+  --chart-4: oklch(0.65 0.14 180);
+  --chart-5: oklch(0.45 0.12 152);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.97 0.02 165);
+  --sidebar-foreground: oklch(0.14 0.05 155);
+  --sidebar-primary: oklch(0.55 0.15 162);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.85 0.08 165);
+  --sidebar-accent-foreground: oklch(0.14 0.05 155);
+  --sidebar-border: oklch(0.9 0.02 165);
+  --sidebar-ring: oklch(0.55 0.15 162);
+}
+
+.dark {
+  --background: oklch(0.18 0.02 165);
+  --foreground: oklch(0.95 0.01 165);
+  --card: oklch(0.22 0.02 165);
+  --card-foreground: oklch(0.95 0.01 165);
+  --popover: oklch(0.22 0.02 165);
+  --popover-foreground: oklch(0.95 0.01 165);
+  --primary: oklch(0.65 0.12 165);
+  --primary-foreground: oklch(0.18 0.02 165);
+  --secondary: oklch(0.35 0.05 165);
+  --secondary-foreground: oklch(0.95 0.01 165);
+  --muted: oklch(0.35 0.05 165);
+  --muted-foreground: oklch(0.65 0.05 160);
+  --accent: oklch(0.65 0.12 165);
+  --accent-foreground: oklch(0.18 0.02 165);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.85 0.15 25);
+  --border: oklch(0.35 0.05 165);
+  --input: oklch(0.35 0.05 165);
+  --ring: oklch(0.65 0.12 165);
+  --chart-1: oklch(0.65 0.12 165);
+  --chart-2: oklch(0.75 0.12 180);
+  --chart-3: oklch(0.55 0.12 162);
+  --chart-4: oklch(0.45 0.10 150);
+  --chart-5: oklch(0.35 0.08 140);
+  --sidebar: oklch(0.22 0.02 165);
+  --sidebar-foreground: oklch(0.95 0.01 165);
+  --sidebar-primary: oklch(0.65 0.12 165);
+  --sidebar-primary-foreground: oklch(0.18 0.02 165);
+  --sidebar-accent: oklch(0.35 0.05 165);
+  --sidebar-accent-foreground: oklch(0.95 0.01 165);
+  --sidebar-border: oklch(0.35 0.05 165);
+  --sidebar-ring: oklch(0.65 0.12 165);
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Emerald accent for SmartFarmer SKACE */
+  .text-emerald-light {
+    @apply text-emerald-50;
+  }
+  .text-emerald-dark {
+    @apply text-emerald-900;
+  }
+  .bg-emerald-light {
+    @apply bg-emerald-50;
+  }
+  .bg-emerald-accent {
+    @apply bg-emerald-600;
+  }
+  .border-emerald {
+    @apply border-emerald-200;
+  }
+  
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 rounded-lg;
+  }
+  
+  .glass-dark {
+    @apply bg-slate-900/80 backdrop-blur-md border border-slate-700/20 rounded-lg;
+  }
+  
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent;
+  }
+  
+  /* Fade in animation */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+  
+  /* Scale animation for cards */
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out;
+  }
+  
+  /* Slide in from left */
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  .animate-slide-in-left {
+    animation: slideInLeft 0.4s ease-out;
+  }
+  
+  /* Pulse animation for notifications */
+  @keyframes pulse-soft {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
+    }
+  }
+  
+  .animate-pulse-soft {
+    animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
