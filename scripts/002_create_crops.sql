@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.crops (
   pest_detected TEXT,
   yield_estimate_kg DECIMAL(12, 2),
   actual_yield_kg DECIMAL(12, 2),
-  estimated_revenue ZMW DECIMAL(12, 2),
+  estimated_revenue DECIMAL(12, 2),
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

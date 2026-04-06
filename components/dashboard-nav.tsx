@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   BarChart3,
   BookOpen,
   Box,
+  Compass,
   Home,
   Leaf,
   LogOut,
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/dashboard/crops', label: 'My Crops', icon: Wheat },
   { href: '/dashboard/livestock', label: 'Livestock', icon: Leaf },
   { href: '/dashboard/logbook', label: 'Logbook', icon: BookOpen },
+  { href: '/dashboard/learn', label: 'Learn', icon: Compass },
   { href: '/dashboard/storage', label: 'Storage', icon: Box },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
 ]
@@ -33,7 +35,12 @@ export function DashboardNav() {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
+
+  useEffect(() => {
+    navItems.forEach((item) => router.prefetch(item.href))
+    router.prefetch('/dashboard/settings')
+  }, [router])
 
   const handleLogout = async () => {
     try {

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useDashboardSession } from '@/components/dashboard/dashboard-session-provider'
 import { createClient } from '@/lib/supabase/client'
 import type { StorageRecord } from '@/lib/types/farm'
 
@@ -56,33 +57,31 @@ function numberOrNull(value: string) {
 }
 
 export default function StoragePage() {
+  const { userId } = useDashboardSession()
   const [items, setItems] = useState<StorageRecord[]>([])
   const [formData, setFormData] = useState<StorageFormState>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     void loadStorage()
-  }, [])
+  }, [userId])
 
   async function loadStorage() {
+    if (!userId) {
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        return
-      }
-
       const { data, error } = await supabase
         .from('storage')
         .select(
           'id, item_name, category, quantity, unit, storage_location, storage_condition, purchase_price_per_unit, current_value, expiry_date, last_checked_date, quality_status, notes, created_at',
         )
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -108,16 +107,12 @@ export default function StoragePage() {
     setIsSaving(true)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      if (!userId) {
         return
       }
 
       const payload = {
-        user_id: user.id,
+        user_id: userId,
         item_name: formData.item_name,
         category: formData.category,
         quantity: numberOrNull(formData.quantity),
@@ -133,7 +128,7 @@ export default function StoragePage() {
       }
 
       const result = editingId
-        ? await supabase.from('storage').update(payload).eq('id', editingId).eq('user_id', user.id)
+        ? await supabase.from('storage').update(payload).eq('id', editingId).eq('user_id', userId)
         : await supabase.from('storage').insert(payload)
 
       if (result.error) {
@@ -174,8 +169,12 @@ export default function StoragePage() {
       return
     }
 
+    if (!userId) {
+      return
+    }
+
     try {
-      const { error } = await supabase.from('storage').delete().eq('id', id)
+      const { error } = await supabase.from('storage').delete().eq('id', id).eq('user_id', userId)
 
       if (error) {
         throw error

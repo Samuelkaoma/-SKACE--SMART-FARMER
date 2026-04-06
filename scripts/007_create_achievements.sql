@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.user_stats (
   crops_managed INTEGER DEFAULT 0,
   livestock_managed INTEGER DEFAULT 0,
   total_harvest_kg DECIMAL(15, 2) DEFAULT 0,
-  total_revenue ZMW DECIMAL(15, 2) DEFAULT 0,
+  total_revenue DECIMAL(15, 2) DEFAULT 0,
   achievements_unlocked INTEGER DEFAULT 0,
   current_streak INTEGER DEFAULT 0,
   best_streak INTEGER DEFAULT 0,

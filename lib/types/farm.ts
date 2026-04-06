@@ -139,6 +139,28 @@ export interface DiseaseLibraryEntry {
   severity: string | null
 }
 
+export type ConditionSignalStatus = 'favorable' | 'watch' | 'risky'
+
+export interface ConditionSignal {
+  id: string
+  title: string
+  status: ConditionSignalStatus
+  summary: string
+  reasons: string[]
+  nextStep: string
+}
+
+export interface GuideModule {
+  id: string
+  title: string
+  category: string
+  summary: string
+  favorableSignals: string[]
+  cautionSignals: string[]
+  nextSteps: string[]
+  recordsToKeep: string[]
+}
+
 export interface DashboardStats {
   activeCrops: number
   trackedArea: number
@@ -181,6 +203,7 @@ export interface PlaybookStep {
 
 export interface DashboardOverviewData {
   stats: DashboardStats
+  conditionSignals: ConditionSignal[]
   recommendations: RecommendationAlert[]
   performanceData: PerformanceDataPoint[]
   cropsDistribution: CropDistributionPoint[]
@@ -188,6 +211,13 @@ export interface DashboardOverviewData {
   knowledgeCards: DiseaseLibraryEntry[]
   playbook: PlaybookStep[]
   recentLogs: FarmLogRecord[]
+}
+
+export interface FarmerGuideData {
+  modules: GuideModule[]
+  conditionSignals: ConditionSignal[]
+  region: string | null
+  yearsFarming: number | null
 }
 
 export interface DashboardShellData {

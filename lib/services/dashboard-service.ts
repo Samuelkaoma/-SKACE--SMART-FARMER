@@ -19,10 +19,15 @@ import {
   sortKnowledgeCards,
   summarizeRecentLogs,
 } from '@/lib/services/advisory-service'
+import {
+  buildConditionSignals,
+  buildGuideModules,
+} from '@/lib/services/farmer-coach-service'
 import type {
   AchievementWithStatus,
   DashboardOverviewData,
   DashboardShellData,
+  FarmerGuideData,
   MarketCommoditySummary,
 } from '@/lib/types/farm'
 
@@ -118,6 +123,12 @@ export async function getDashboardOverviewData({
       totalRevenue: dashboardSnapshot.userStats.total_revenue ?? 0,
       totalHarvestKg: dashboardSnapshot.userStats.total_harvest_kg ?? 0,
     },
+    conditionSignals: buildConditionSignals({
+      crops: dashboardSnapshot.crops,
+      livestock: dashboardSnapshot.livestock,
+      storage: dashboardSnapshot.storage,
+      weather,
+    }),
     recommendations: buildRecommendationAlerts({
       crops: dashboardSnapshot.crops,
       livestock: dashboardSnapshot.livestock,
@@ -140,6 +151,36 @@ export async function getDashboardOverviewData({
       yearsFarming: profileSummary.profile.years_farming,
     }),
     recentLogs: summarizeRecentLogs(recentLogs),
+  }
+}
+
+export async function getFarmerGuideData({
+  supabase,
+  userId,
+}: {
+  supabase: DatabaseClient
+  userId: string
+}): Promise<FarmerGuideData> {
+  const profileSummary = await getUserProfileSummary(supabase, userId)
+  const dashboardSnapshot = await getDashboardSnapshot(supabase, userId)
+  const weather = await getLatestRegionalWeather(supabase, profileSummary.profile.region)
+
+  return {
+    modules: buildGuideModules({
+      crops: dashboardSnapshot.crops,
+      livestock: dashboardSnapshot.livestock,
+      profile: profileSummary.profile,
+      storage: dashboardSnapshot.storage,
+      weather,
+    }),
+    conditionSignals: buildConditionSignals({
+      crops: dashboardSnapshot.crops,
+      livestock: dashboardSnapshot.livestock,
+      storage: dashboardSnapshot.storage,
+      weather,
+    }),
+    region: profileSummary.profile.region,
+    yearsFarming: profileSummary.profile.years_farming,
   }
 }
 

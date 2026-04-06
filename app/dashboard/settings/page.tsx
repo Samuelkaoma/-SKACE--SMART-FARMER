@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Bell, Lock, Settings, User } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { useDashboardSession } from '@/components/dashboard/dashboard-session-provider'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -22,7 +23,8 @@ const REGIONS = [
 ]
 
 export default function SettingsPage() {
-  const [email, setEmail] = useState('')
+  const { userEmail, userId } = useDashboardSession()
+  const [email, setEmail] = useState(userEmail ?? '')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
@@ -33,27 +35,25 @@ export default function SettingsPage() {
   const [primaryLivestock, setPrimaryLivestock] = useState('')
   const [notifications, setNotifications] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
+
+  useEffect(() => {
+    setEmail(userEmail ?? '')
+  }, [userEmail])
 
   useEffect(() => {
     const loadSettings = async () => {
+      if (!userId) {
+        return
+      }
+
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (!user) {
-          return
-        }
-
-        setEmail(user.email || '')
-
         const { data: profile, error } = await supabase
           .from('profiles')
           .select(
             'first_name, last_name, phone, region, farm_size_hectares, years_farming, primary_crop, primary_livestock, notifications_enabled',
           )
-          .eq('id', user.id)
+          .eq('id', userId)
           .maybeSingle()
 
         if (error) {
@@ -78,23 +78,19 @@ export default function SettingsPage() {
     }
 
     void loadSettings()
-  }, [supabase])
+  }, [supabase, userId])
 
   async function handleSaveSettings() {
     setIsSaving(true)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      if (!userId) {
         return
       }
 
       const { error } = await supabase.from('profiles').upsert(
         {
-          id: user.id,
+          id: userId,
           first_name: firstName || null,
           last_name: lastName || null,
           phone: phone || null,

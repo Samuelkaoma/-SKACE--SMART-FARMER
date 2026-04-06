@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.livestock (
   production_type TEXT, -- meat, dairy, eggs, wool
   monthly_production DECIMAL(10, 2),
   production_unit TEXT, -- kg, liters, eggs
-  estimated_value ZMW DECIMAL(12, 2),
+  estimated_value DECIMAL(12, 2),
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

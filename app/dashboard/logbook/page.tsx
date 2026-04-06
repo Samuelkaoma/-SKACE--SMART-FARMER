@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useDashboardSession } from '@/components/dashboard/dashboard-session-provider'
 import { createClient } from '@/lib/supabase/client'
 import type { CropRecord, FarmLogRecord, LivestockRecord } from '@/lib/types/farm'
 
@@ -69,6 +70,7 @@ function titleCase(value: string) {
 }
 
 export default function LogbookPage() {
+  const { userId } = useDashboardSession()
   const [logs, setLogs] = useState<FarmLogRecord[]>([])
   const [crops, setCrops] = useState<CropRecord[]>([])
   const [livestock, setLivestock] = useState<LivestockRecord[]>([])
@@ -76,39 +78,36 @@ export default function LogbookPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     void loadLogbook()
-  }, [])
+  }, [userId])
 
   async function loadLogbook() {
+    if (!userId) {
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        return
-      }
-
       const [logsResult, cropsResult, livestockResult] = await Promise.all([
         supabase
           .from('farm_logs')
           .select(
             'id, log_date, log_type, crop_id, livestock_id, activity_description, weather_condition, temperature_celsius, rainfall_mm, labor_hours, expense_amount, expense_category, harvest_quantity_kg, quality_grade, notes, created_at',
           )
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('log_date', { ascending: false }),
         supabase
           .from('crops')
           .select('id, crop_name, crop_type, current_stage')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('crop_name', { ascending: true }),
         supabase
           .from('livestock')
           .select('id, animal_type, breed, quantity')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('animal_type', { ascending: true }),
       ])
 
@@ -143,16 +142,12 @@ export default function LogbookPage() {
     setIsSaving(true)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      if (!userId) {
         return
       }
 
       const payload = {
-        user_id: user.id,
+        user_id: userId,
         log_date: formData.log_date,
         log_type: formData.log_type,
         crop_id: formData.crop_id || null,
@@ -170,7 +165,7 @@ export default function LogbookPage() {
       }
 
       const result = editingId
-        ? await supabase.from('farm_logs').update(payload).eq('id', editingId).eq('user_id', user.id)
+        ? await supabase.from('farm_logs').update(payload).eq('id', editingId).eq('user_id', userId)
         : await supabase.from('farm_logs').insert(payload)
 
       if (result.error) {
@@ -213,8 +208,12 @@ export default function LogbookPage() {
       return
     }
 
+    if (!userId) {
+      return
+    }
+
     try {
-      const { error } = await supabase.from('farm_logs').delete().eq('id', id)
+      const { error } = await supabase.from('farm_logs').delete().eq('id', id).eq('user_id', userId)
 
       if (error) {
         throw error

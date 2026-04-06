@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS public.storage (
   unit TEXT NOT NULL, -- kg, bags, liters, units
   storage_location TEXT,
   storage_condition TEXT DEFAULT 'dry',
-  purchase_price_per_unit ZMW DECIMAL(10, 2),
-  current_value ZMW DECIMAL(12, 2),
+  purchase_price_per_unit DECIMAL(10, 2),
+  current_value DECIMAL(12, 2),
   expiry_date DATE,
   last_checked_date DATE,
   quality_status TEXT DEFAULT 'good', -- good, fair, poor

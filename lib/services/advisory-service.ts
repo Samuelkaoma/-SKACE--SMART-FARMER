@@ -379,6 +379,14 @@ export function buildPlaybook({
         label: 'Add farm records',
       },
       {
+        id: 'learn-season-signals',
+        title: 'Learn what favorable conditions look like',
+        description:
+          'Use the built-in learning center to understand when weather, moisture, and health signals mean go, caution, or protect now.',
+        href: '/dashboard/learn',
+        label: 'Open learning center',
+      },
+      {
         id: 'log-activities',
         title: 'Keep a weekly logbook',
         description:

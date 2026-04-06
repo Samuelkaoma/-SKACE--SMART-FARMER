@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useDashboardSession } from '@/components/dashboard/dashboard-session-provider'
 import { createClient } from '@/lib/supabase/client'
 import type { CropRecord } from '@/lib/types/farm'
 
@@ -92,33 +93,31 @@ function numberOrNull(value: string) {
 }
 
 export default function CropsPage() {
+  const { userId } = useDashboardSession()
   const [crops, setCrops] = useState<CropRecord[]>([])
   const [formData, setFormData] = useState<CropFormState>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     void loadCrops()
-  }, [])
+  }, [userId])
 
   async function loadCrops() {
+    if (!userId) {
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        return
-      }
-
       const { data, error } = await supabase
         .from('crops')
         .select(
           'id, crop_name, crop_type, variety, planting_date, expected_harvest_date, area_planted_hectares, seed_quantity_kg, fertilizer_type, fertilizer_quantity_kg, current_stage, soil_type, soil_ph, moisture_level, health_status, disease_detected, pest_detected, yield_estimate_kg, actual_yield_kg, estimated_revenue, notes, created_at',
         )
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -144,16 +143,12 @@ export default function CropsPage() {
     setIsSaving(true)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      if (!userId) {
         return
       }
 
       const payload = {
-        user_id: user.id,
+        user_id: userId,
         crop_name: formData.crop_name,
         crop_type: formData.crop_type,
         variety: formData.variety || null,
@@ -176,7 +171,7 @@ export default function CropsPage() {
       }
 
       const result = editingId
-        ? await supabase.from('crops').update(payload).eq('id', editingId).eq('user_id', user.id)
+        ? await supabase.from('crops').update(payload).eq('id', editingId).eq('user_id', userId)
         : await supabase.from('crops').insert(payload)
 
       if (result.error) {
@@ -224,8 +219,12 @@ export default function CropsPage() {
       return
     }
 
+    if (!userId) {
+      return
+    }
+
     try {
-      const { error } = await supabase.from('crops').delete().eq('id', id)
+      const { error } = await supabase.from('crops').delete().eq('id', id).eq('user_id', userId)
 
       if (error) {
         throw error

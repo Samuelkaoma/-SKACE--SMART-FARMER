@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getReadableAuthError } from '@/lib/auth/auth-error'
 import { createClient } from '@/lib/supabase/client'
 
 export default function Page() {
@@ -51,7 +52,7 @@ export default function Page() {
         options: {
           emailRedirectTo:
             process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/dashboard`,
+            `${window.location.origin}/auth/callback?next=/dashboard`,
         },
       })
 
@@ -61,7 +62,7 @@ export default function Page() {
 
       router.push('/auth/sign-up-success')
     } catch (signUpError: unknown) {
-      setError(signUpError instanceof Error ? signUpError.message : 'An error occurred')
+      setError(getReadableAuthError(signUpError))
     } finally {
       setIsLoading(false)
     }

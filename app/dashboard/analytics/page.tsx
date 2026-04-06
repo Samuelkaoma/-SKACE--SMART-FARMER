@@ -18,6 +18,7 @@ import {
 } from 'recharts'
 import { Award, Star, Target, TrendingUp, Trophy, Zap } from 'lucide-react'
 
+import { useDashboardSession } from '@/components/dashboard/dashboard-session-provider'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -55,6 +56,7 @@ const achievements = [
 const chartPalette = ['#0f9f6e', '#0e7490', '#f59e0b', '#94a3b8']
 
 export default function AnalyticsPage() {
+  const { userId } = useDashboardSession()
   const [userStats, setUserStats] = useState({
     totalRevenue: 0,
     totalHarvestKg: 0,
@@ -65,25 +67,21 @@ export default function AnalyticsPage() {
     livestockManaged: 0,
   })
 
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     const loadStats = async () => {
+      if (!userId) {
+        return
+      }
+
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (!user) {
-          return
-        }
-
         const { data, error } = await supabase
           .from('user_stats')
           .select(
             'total_revenue, total_harvest_kg, total_points, current_tier, achievements_unlocked, crops_managed, livestock_managed',
           )
-          .eq('id', user.id)
+          .eq('id', userId)
           .maybeSingle()
 
         if (error) {
@@ -107,7 +105,7 @@ export default function AnalyticsPage() {
     }
 
     void loadStats()
-  }, [supabase])
+  }, [supabase, userId])
 
   const tierStyles = getTierStyles(userStats.tier)
 

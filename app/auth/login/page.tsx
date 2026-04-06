@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getReadableAuthError } from '@/lib/auth/auth-error'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -37,7 +38,7 @@ export default function Page() {
       if (error) throw error
       router.push('/dashboard')
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
+      setError(getReadableAuthError(error))
     } finally {
       setIsLoading(false)
     }

@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useDashboardSession } from '@/components/dashboard/dashboard-session-provider'
 import { createClient } from '@/lib/supabase/client'
 import type { LivestockRecord } from '@/lib/types/farm'
 
@@ -77,33 +78,31 @@ function numberOrNull(value: string) {
 }
 
 export default function LivestockPage() {
+  const { userId } = useDashboardSession()
   const [livestock, setLivestock] = useState<LivestockRecord[]>([])
   const [formData, setFormData] = useState<LivestockFormState>(emptyForm)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
 
   useEffect(() => {
     void loadLivestock()
-  }, [])
+  }, [userId])
 
   async function loadLivestock() {
+    if (!userId) {
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        return
-      }
-
       const { data, error } = await supabase
         .from('livestock')
         .select(
           'id, animal_type, breed, quantity, average_weight_kg, acquisition_date, health_status, last_vaccinated, next_vaccination_due, feed_type, daily_feed_quantity_kg, water_liters_per_day, shelter_type, space_per_animal_sqm, mortality_count, production_type, monthly_production, production_unit, estimated_value, notes, created_at',
         )
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -129,16 +128,12 @@ export default function LivestockPage() {
     setIsSaving(true)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+      if (!userId) {
         return
       }
 
       const payload = {
-        user_id: user.id,
+        user_id: userId,
         animal_type: formData.animal_type,
         breed: formData.breed || null,
         quantity: numberOrNull(formData.quantity),
@@ -160,7 +155,7 @@ export default function LivestockPage() {
       }
 
       const result = editingId
-        ? await supabase.from('livestock').update(payload).eq('id', editingId).eq('user_id', user.id)
+        ? await supabase.from('livestock').update(payload).eq('id', editingId).eq('user_id', userId)
         : await supabase.from('livestock').insert(payload)
 
       if (result.error) {
@@ -207,8 +202,12 @@ export default function LivestockPage() {
       return
     }
 
+    if (!userId) {
+      return
+    }
+
     try {
-      const { error } = await supabase.from('livestock').delete().eq('id', id)
+      const { error } = await supabase.from('livestock').delete().eq('id', id).eq('user_id', userId)
 
       if (error) {
         throw error

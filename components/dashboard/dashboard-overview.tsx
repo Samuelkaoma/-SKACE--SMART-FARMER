@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowRight,
   BookOpen,
+  Compass,
   BookText,
   LineChart as LineChartIcon,
   NotebookPen,
@@ -28,7 +29,9 @@ import {
 } from 'recharts'
 
 import { Button } from '@/components/ui/button'
+import { ConditionSignalsPanel } from '@/components/dashboard/condition-signals-panel'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { LoadDemoFarmButton } from '@/components/dashboard/load-demo-farm-button'
 import { DASHBOARD_CHART_COLORS } from '@/lib/constants/dashboard'
 import type { DashboardOverviewData, RecommendationPriority } from '@/lib/types/farm'
 
@@ -88,6 +91,12 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
           </div>
         </div>
       </section>
+
+      <ConditionSignalsPanel
+        description="These built-in signals explain whether current crop, livestock, and storage conditions look favorable, need watching, or are already risky."
+        signals={data.conditionSignals}
+        title="Farm condition signals"
+      />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
         <div className="space-y-6">
@@ -365,9 +374,15 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
           <Card className="border-emerald-200/80 shadow-sm shadow-emerald-100">
             <CardHeader>
               <CardTitle className="text-base">Quick actions</CardTitle>
-              <CardDescription>Fast routes for the most important daily tasks.</CardDescription>
+              <CardDescription>
+                Fast routes for the most important daily tasks, plus a one-click demo farm simulation.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
+              <LoadDemoFarmButton />
+              <QuickAction href="/dashboard/learn" icon={<Compass className="h-4 w-4" />}>
+                Open learning center
+              </QuickAction>
               <QuickAction href="/dashboard/crops" icon={<Sprout className="h-4 w-4" />}>
                 Manage crop records
               </QuickAction>

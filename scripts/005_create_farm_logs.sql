@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.farm_logs (
   temperature_celsius DECIMAL(5, 1),
   rainfall_mm DECIMAL(8, 2),
   labor_hours DECIMAL(5, 1),
-  expense_amount ZMW DECIMAL(12, 2),
+  expense_amount DECIMAL(12, 2),
   expense_category TEXT,
   harvest_quantity_kg DECIMAL(12, 2),
   quality_grade TEXT,

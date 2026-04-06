@@ -52,7 +52,7 @@ $$ LANGUAGE plpgsql;
 -- Function to generate recommendations based on crop health
 CREATE OR REPLACE FUNCTION public.generate_crop_recommendations(
   crop_id UUID,
-  user_id UUID
+  target_user_id UUID
 )
 RETURNS void AS $$
 DECLARE
@@ -67,9 +67,9 @@ BEGIN
   -- Alert for disease
   IF crop_record.disease_detected IS NOT NULL THEN
     INSERT INTO public.recommendations (
-      user_id, crop_id, recommendation_type, priority, title, description
+      user_id, crop_id, recommendation_type, priority, title, description, action_items, estimated_impact
     ) VALUES (
-      user_id,
+      target_user_id,
       crop_id,
       'alert',
       'critical',
@@ -83,9 +83,9 @@ BEGIN
   -- Alert for pest
   IF crop_record.pest_detected IS NOT NULL THEN
     INSERT INTO public.recommendations (
-      user_id, crop_id, recommendation_type, priority, title, description
+      user_id, crop_id, recommendation_type, priority, title, description, action_items, estimated_impact
     ) VALUES (
-      user_id,
+      target_user_id,
       crop_id,
       'alert',
       'high',
@@ -99,9 +99,9 @@ BEGIN
   -- Harvest preparation suggestion
   IF days_to_harvest <= 14 AND days_to_harvest > 0 THEN
     INSERT INTO public.recommendations (
-      user_id, crop_id, recommendation_type, priority, title, description
+      user_id, crop_id, recommendation_type, priority, title, description, action_items, estimated_impact
     ) VALUES (
-      user_id,
+      target_user_id,
       crop_id,
       'suggestion',
       'high',
@@ -115,9 +115,9 @@ BEGIN
   -- Watering recommendation
   IF crop_record.moisture_level < 40 THEN
     INSERT INTO public.recommendations (
-      user_id, crop_id, recommendation_type, priority, title, description
+      user_id, crop_id, recommendation_type, priority, title, description, action_items, estimated_impact
     ) VALUES (
-      user_id,
+      target_user_id,
       crop_id,
       'alert',
       'medium',
