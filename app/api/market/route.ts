@@ -1,91 +1,65 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
-export async function GET(request: NextRequest) {
+import { ApiError, handleRouteError } from '@/lib/api/route-helpers'
+import { requireRouteUser } from '@/lib/auth/server'
+import { isDevSeedRouteEnabled } from '@/lib/config/env'
+import { getMarketSummary } from '@/lib/services/dashboard-service'
+import { createClient } from '@/lib/supabase/server'
+
+const seededCommodities = [
+  { commodity_name: 'Maize', basePrice: 2500, unit: 'kg' },
+  { commodity_name: 'Sorghum', basePrice: 2200, unit: 'kg' },
+  { commodity_name: 'Groundnuts', basePrice: 3500, unit: 'kg' },
+  { commodity_name: 'Wheat', basePrice: 3200, unit: 'kg' },
+  { commodity_name: 'Beans', basePrice: 4500, unit: 'kg' },
+]
+
+export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    await requireRouteUser(supabase)
+    const data = await getMarketSummary({ supabase })
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get current market prices
-    const { data, error } = await supabase
-      .from('market_prices')
-      .select('*')
-      .order('date', { ascending: false })
-      .limit(50)
-
-    if (error) throw error
-
-    // Group by commodity and get recent prices
-    const commodityMap = new Map()
-    data?.forEach(item => {
-      if (!commodityMap.has(item.commodity)) {
-        commodityMap.set(item.commodity, [])
-      }
-      commodityMap.get(item.commodity).push(item)
-    })
-
-    // Calculate price trends
-    const commodities = Array.from(commodityMap.entries()).map(([name, prices]) => {
-      const recent = prices[0]
-      const previous = prices[5] || prices[prices.length - 1]
-      const trend = recent.price >= previous.price ? 'up' : 'down'
-      const percentChange = ((recent.price - previous.price) / previous.price * 100).toFixed(1)
-
-      return {
-        name,
-        currentPrice: recent.price,
-        date: recent.date,
-        trend,
-        percentChange,
-        priceHistory: prices.slice(0, 10).reverse(),
-      }
-    })
-
-    return NextResponse.json({ data: commodities })
+    return NextResponse.json({ data })
   } catch (error) {
-    console.log('[v0] Market API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch market data' }, { status: 500 })
+    return handleRouteError(error, 'Failed to fetch market data.')
   }
 }
 
-// Seed market data endpoint (admin only)
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    await requireRouteUser(supabase)
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!isDevSeedRouteEnabled()) {
+      throw new ApiError(403, 'Market seed endpoint is disabled for this environment.')
     }
 
-    const commodities = ['Maize', 'Sorghum', 'Groundnuts', 'Wheat', 'Beans']
-    const mockPrices = []
+    const today = new Date()
+    const mockPrices = seededCommodities.flatMap((commodity, commodityIndex) =>
+      Array.from({ length: 10 }).map((_, dayOffset) => {
+        const date = new Date(today)
+        date.setDate(today.getDate() - dayOffset)
 
-    for (const commodity of commodities) {
-      for (let i = 0; i < 10; i++) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const basePrice = Math.random() * 1000 + 2000
-        
-        mockPrices.push({
-          commodity,
-          price: Math.round(basePrice),
-          date: date.toISOString(),
-          region: 'Zambia',
-        })
-      }
+        return {
+          commodity_name: commodity.commodity_name,
+          price_per_unit: commodity.basePrice + commodityIndex * 85 - dayOffset * 20,
+          recorded_date: date.toISOString().slice(0, 10),
+          region: 'Lusaka',
+          unit: commodity.unit,
+          demand_trend: dayOffset < 3 ? 'rising' : 'stable',
+        }
+      }),
+    )
+
+    const insertResult = await supabase.from('market_prices').insert(mockPrices)
+
+    if (insertResult.error) {
+      throw new Error(insertResult.error.message)
     }
-
-    const { error } = await supabase.from('market_prices').insert(mockPrices)
-    if (error) throw error
 
     return NextResponse.json({ success: true, inserted: mockPrices.length })
   } catch (error) {
-    console.log('[v0] Error seeding market data:', error)
-    return NextResponse.json({ error: 'Failed to seed data' }, { status: 500 })
+    return handleRouteError(error, 'Failed to seed market data.')
   }
 }

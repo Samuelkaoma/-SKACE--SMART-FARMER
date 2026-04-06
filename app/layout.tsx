@@ -1,17 +1,41 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+
+import { getSiteUrl } from '@/lib/config/env'
+
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const siteUrl = getSiteUrl()
 
 export const metadata: Metadata = {
-  title: 'SmartFarmer SKACE - By Samuel Kaoma',
-  description: 'Intelligent farming platform for Zambian farmers. Smart crop management, livestock tracking, AI recommendations, and market intelligence.',
-  generator: 'v0.app',
-  keywords: ['farming', 'agriculture', 'smart farm', 'Zambia', 'crop management', 'livestock'],
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'SmartFarmer SKACE',
+    template: '%s | SmartFarmer SKACE',
+  },
+  description:
+    'SmartFarmer SKACE is a farm operating platform for Zambian growers and livestock keepers, combining records, guidance, weather context, and market signals in one place.',
+  keywords: [
+    'farming',
+    'agriculture',
+    'smart farm',
+    'Zambia',
+    'crop management',
+    'livestock',
+    'farm operations',
+    'smallholder farmers',
+    'agritech',
+  ],
   authors: [{ name: 'Samuel Kaoma' }],
+  openGraph: {
+    title: 'SmartFarmer SKACE',
+    description:
+      'A production-minded agritech platform built to help farmers record operations, spot risks, and act with more confidence.',
+    url: siteUrl,
+    siteName: 'SmartFarmer SKACE',
+    locale: 'en_ZM',
+    type: 'website',
+  },
   icons: {
     icon: [
       {
@@ -43,7 +67,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased">
+      <body className="min-h-screen bg-background font-sans antialiased">
         {children}
         <Analytics />
       </body>

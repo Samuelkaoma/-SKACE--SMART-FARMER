@@ -1,16 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { Award, Star, Target, TrendingUp, Trophy, Zap } from 'lucide-react'
+
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { 
-  BarChart, Bar, LineChart, Line, AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
-} from 'recharts'
-import { 
-  TrendingUp, Award, Zap, Target, Star, Trophy
-} from 'lucide-react'
 
 const revenueData = [
   { month: 'Jan', revenue: 2400, target: 3000 },
@@ -27,295 +36,290 @@ const resourceUsage = [
   { resource: 'Seeds', usage: 85, efficient: 90 },
 ]
 
-const achievements = [
-  { name: 'First Harvest', icon: '🌾', description: 'Harvest your first crop', earned: true },
-  { name: 'Livestock Master', icon: '🐄', description: 'Record 10 livestock entries', earned: true },
-  { name: 'Data Keeper', icon: '📊', description: 'Log 30+ farm entries', earned: false },
-  { name: 'Eco Warrior', icon: '♻️', description: 'Reduce resource usage by 20%', earned: false },
-  { name: 'Market Expert', icon: '💰', description: 'Use market insights 5 times', earned: true },
-  { name: 'Farmer Pro', icon: '⭐', description: 'Reach Gold tier', earned: false },
-  { name: 'Weather Watcher', icon: '☀️', description: 'Check weather 15 times', earned: false },
-  { name: 'Storage King', icon: '🏪', description: 'Store 1000kg of produce', earned: false },
-]
-
 const regionalData = [
   { region: 'Lusaka', yield: 85, health: 88 },
   { region: 'Copperbelt', yield: 78, health: 82 },
-  { region: 'Northern', yield: 92, health: 90 },
-  { region: 'Southern', yield: 75, health: 80 },
+  { region: 'Northern Region', yield: 92, health: 90 },
+  { region: 'Southern Region', yield: 75, health: 80 },
 ]
 
-const COLORS = ['#10b981', '#14b8a6', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444']
+const achievements = [
+  { name: 'First Crop', badge: 'FC', description: 'Plant your first crop', earned: true },
+  { name: 'Harvest Master', badge: 'HM', description: 'Complete 5 crop harvests', earned: false },
+  { name: 'Livestock Leader', badge: 'LL', description: 'Add 10 livestock entries', earned: true },
+  { name: 'Data Champion', badge: 'DC', description: 'Log 30 farm activities', earned: false },
+  { name: 'Storage Expert', badge: 'SE', description: 'Store 1000 kg of produce', earned: false },
+  { name: 'Market Master', badge: 'MM', description: 'Track prices 10 times', earned: true },
+]
+
+const chartPalette = ['#0f9f6e', '#0e7490', '#f59e0b', '#94a3b8']
 
 export default function AnalyticsPage() {
   const [userStats, setUserStats] = useState({
-    totalRevenue: 18000,
-    points: 450,
-    tier: 'Silver',
-    percentToNextTier: 65,
-    earnedAchievements: 3,
-    totalAchievements: 8,
+    totalRevenue: 0,
+    totalHarvestKg: 0,
+    points: 0,
+    tier: 'bronze',
+    achievementsUnlocked: 0,
+    cropsManaged: 0,
+    livestockManaged: 0,
   })
+
   const supabase = createClient()
 
   useEffect(() => {
     const loadStats = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-        const { data } = await supabase
+        if (!user) {
+          return
+        }
+
+        const { data, error } = await supabase
           .from('user_stats')
-          .select('*')
-          .eq('user_id', user.id)
-          .single()
+          .select(
+            'total_revenue, total_harvest_kg, total_points, current_tier, achievements_unlocked, crops_managed, livestock_managed',
+          )
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (error) {
+          throw error
+        }
 
         if (data) {
           setUserStats({
-            totalRevenue: data.total_revenue || 18000,
-            points: data.points || 450,
-            tier: data.tier || 'Silver',
-            percentToNextTier: data.percent_to_next_tier || 65,
-            earnedAchievements: data.achievements_count || 3,
-            totalAchievements: 8,
+            totalRevenue: data.total_revenue || 0,
+            totalHarvestKg: data.total_harvest_kg || 0,
+            points: data.total_points || 0,
+            tier: data.current_tier || 'bronze',
+            achievementsUnlocked: data.achievements_unlocked || 0,
+            cropsManaged: data.crops_managed || 0,
+            livestockManaged: data.livestock_managed || 0,
           })
         }
       } catch (error) {
-        console.log('[v0] Error loading stats:', error)
+        console.error('Error loading analytics stats:', error)
       }
     }
 
-    loadStats()
+    void loadStats()
   }, [supabase])
 
-  const getTierColor = (tier: string) => {
-    switch (tier) {
-      case 'Bronze':
-        return { bg: 'bg-amber-100', text: 'text-amber-800', accent: '#92400e' }
-      case 'Silver':
-        return { bg: 'bg-gray-100', text: 'text-gray-800', accent: '#4b5563' }
-      case 'Gold':
-        return { bg: 'bg-yellow-100', text: 'text-yellow-800', accent: '#b45309' }
-      default:
-        return { bg: 'bg-purple-100', text: 'text-purple-800', accent: '#6d28d9' }
-    }
-  }
-
-  const tierColors = getTierColor(userStats.tier)
+  const tierStyles = getTierStyles(userStats.tier)
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-emerald-900">Analytics & Performance</h1>
-        <p className="text-gray-500 mt-1">Track your farm's performance and achievements</p>
-      </div>
+      <section className="rounded-[2rem] border border-emerald-200 bg-white/90 p-6 shadow-sm shadow-emerald-100 sm:p-8">
+        <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-700">
+          Analytics
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+          Operational analytics and traction signals
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+          Use these views to explain farm performance, reward progression, and why consistent record keeping matters.
+        </p>
+      </section>
 
-      {/* Tier & Points Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Tier Progress */}
-        <Card className={`border-2 ${tierColors.bg}`}>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <Card className={`border-2 ${tierStyles.bg}`}>
           <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <Trophy className="w-16 h-16 mx-auto text-amber-600" />
+            <div className="space-y-4 text-center">
+              <Trophy className={`mx-auto h-16 w-16 ${tierStyles.icon}`} />
               <div>
-                <p className={`text-sm ${tierColors.text}`}>Current Tier</p>
-                <h2 className={`text-3xl font-bold ${tierColors.text}`}>{userStats.tier}</h2>
+                <p className={`text-sm ${tierStyles.text}`}>Current tier</p>
+                <h2 className={`text-3xl font-bold ${tierStyles.text}`}>
+                  {titleCase(userStats.tier)}
+                </h2>
               </div>
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">Progress to Next Tier</p>
-                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                  <div 
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full transition-all"
-                    style={{ width: `${userStats.percentToNextTier}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs text-gray-500">{userStats.percentToNextTier}% complete</p>
-              </div>
+              <p className="text-sm text-slate-600">
+                Progress improves as farmers log activity, protect crop health, and grow harvest output.
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Points */}
         <Card className="border-emerald-200">
           <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <Zap className="w-16 h-16 mx-auto text-amber-500" />
+            <div className="space-y-4 text-center">
+              <Zap className="mx-auto h-16 w-16 text-amber-500" />
               <div>
-                <p className="text-sm text-gray-600">Total Points</p>
+                <p className="text-sm text-slate-600">Total points</p>
                 <h2 className="text-3xl font-bold text-amber-600">{userStats.points}</h2>
               </div>
-              <p className="text-sm text-gray-500">Earn points from activities and achievements</p>
+              <p className="text-sm text-slate-500">
+                Points turn activity and discipline into visible momentum for the farmer.
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-emerald-200">
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-gray-600 text-sm">Total Revenue</p>
-                <p className="text-3xl font-bold text-emerald-700 mt-2">ZMW {userStats.totalRevenue}</p>
-                <p className="text-xs text-green-600 mt-1">↑ 12% from last month</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-emerald-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-teal-200">
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-gray-600 text-sm">Avg Yield</p>
-                <p className="text-3xl font-bold text-teal-700 mt-2">85%</p>
-                <p className="text-xs text-green-600 mt-1">Excellent performance</p>
-              </div>
-              <Target className="w-8 h-8 text-teal-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-amber-200">
-          <CardContent className="pt-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-gray-600 text-sm">Efficiency</p>
-                <p className="text-3xl font-bold text-amber-700 mt-2">78%</p>
-                <p className="text-xs text-green-600 mt-1">Above target</p>
-              </div>
-              <Star className="w-8 h-8 text-amber-400" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <MetricCard
+          icon={<TrendingUp className="h-8 w-8 text-emerald-400" />}
+          title="Total revenue"
+          value={`ZMW ${userStats.totalRevenue}`}
+          note="Financial visibility"
+          accent="text-emerald-700"
+        />
+        <MetricCard
+          icon={<Target className="h-8 w-8 text-teal-400" />}
+          title="Harvest tracked"
+          value={`${userStats.totalHarvestKg} kg`}
+          note="Production evidence"
+          accent="text-teal-700"
+        />
+        <MetricCard
+          icon={<Star className="h-8 w-8 text-amber-400" />}
+          title="Crops managed"
+          value={`${userStats.cropsManaged}`}
+          note="Operational scope"
+          accent="text-amber-700"
+        />
+        <MetricCard
+          icon={<Award className="h-8 w-8 text-sky-400" />}
+          title="Achievements"
+          value={`${userStats.achievementsUnlocked}`}
+          note="Behavioral progress"
+          accent="text-sky-700"
+        />
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Trend */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card className="border-emerald-200">
           <CardHeader>
-            <CardTitle>Revenue Trend</CardTitle>
-            <CardDescription>Monthly revenue vs target</CardDescription>
+            <CardTitle>Revenue trend</CardTitle>
+            <CardDescription>Illustrative monthly revenue compared with target</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip contentStyle={{ backgroundColor: '#f3f4f6', border: 'none' }} />
+                <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                <XAxis dataKey="month" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip contentStyle={{ border: 'none', borderRadius: '16px' }} />
                 <Legend />
-                <Bar dataKey="revenue" fill="#10b981" />
-                <Bar dataKey="target" fill="#d1d5db" />
+                <Bar dataKey="revenue" fill="#0f9f6e" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="target" fill="#cbd5e1" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Resource Efficiency */}
         <Card className="border-emerald-200">
           <CardHeader>
-            <CardTitle>Resource Efficiency</CardTitle>
-            <CardDescription>Usage vs optimal levels</CardDescription>
+            <CardTitle>Resource efficiency</CardTitle>
+            <CardDescription>Illustrative usage versus healthy benchmark</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={260}>
               <BarChart data={resourceUsage} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis type="number" stroke="#6b7280" />
-                <YAxis dataKey="resource" type="category" stroke="#6b7280" />
-                <Tooltip contentStyle={{ backgroundColor: '#f3f4f6', border: 'none' }} />
-                <Bar dataKey="usage" fill="#14b8a6" />
-                <Bar dataKey="efficient" fill="#d1d5db" />
+                <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                <XAxis stroke="#64748b" type="number" />
+                <YAxis dataKey="resource" stroke="#64748b" type="category" />
+                <Tooltip contentStyle={{ border: 'none', borderRadius: '16px' }} />
+                <Legend />
+                <Bar dataKey="usage" fill="#0e7490" radius={[0, 8, 8, 0]} />
+                <Bar dataKey="efficient" fill="#cbd5e1" radius={[0, 8, 8, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Regional Comparison */}
         <Card className="border-emerald-200">
           <CardHeader>
-            <CardTitle>Regional Performance</CardTitle>
-            <CardDescription>Comparison across regions</CardDescription>
+            <CardTitle>Regional comparison</CardTitle>
+            <CardDescription>Illustrative benchmark by province</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={regionalData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="region" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip contentStyle={{ backgroundColor: '#f3f4f6', border: 'none' }} />
+                <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
+                <XAxis dataKey="region" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip contentStyle={{ border: 'none', borderRadius: '16px' }} />
                 <Legend />
-                <Area type="monotone" dataKey="yield" fill="#10b981" stroke="#059669" />
-                <Area type="monotone" dataKey="health" fill="#14b8a6" stroke="#0d9488" />
+                <Area dataKey="yield" fill="#34d399" stroke="#0f9f6e" type="monotone" />
+                <Area dataKey="health" fill="#67e8f9" stroke="#0e7490" type="monotone" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Achievements Progress */}
         <Card className="border-emerald-200">
           <CardHeader>
-            <CardTitle>Achievement Progress</CardTitle>
-            <CardDescription>{userStats.earnedAchievements} of {userStats.totalAchievements} earned</CardDescription>
+            <CardTitle>Achievement progress</CardTitle>
+            <CardDescription>Completed versus remaining milestone targets</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie
                   data={[
-                    { name: 'Earned', value: userStats.earnedAchievements },
-                    { name: 'Remaining', value: userStats.totalAchievements - userStats.earnedAchievements }
+                    { name: 'Earned', value: userStats.achievementsUnlocked },
+                    {
+                      name: 'Remaining',
+                      value: Math.max(achievements.length - userStats.achievementsUnlocked, 0),
+                    },
                   ]}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={2}
                   dataKey="value"
+                  innerRadius={58}
+                  outerRadius={88}
+                  paddingAngle={3}
                 >
-                  <Cell fill="#10b981" />
-                  <Cell fill="#d1d5db" />
+                  {chartPalette.slice(0, 2).map((color) => (
+                    <Cell key={color} fill={color} />
+                  ))}
                 </Pie>
+                <Tooltip contentStyle={{ border: 'none', borderRadius: '16px' }} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Achievements */}
       <Card className="border-emerald-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Award className="w-5 h-5" />
-            Achievements
+            <Award className="h-5 w-5" />
+            Milestone ladder
           </CardTitle>
-          <CardDescription>Unlock badges by completing farm milestones</CardDescription>
+          <CardDescription>Achievements that make the product more engaging and pitchable</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {achievements.map((achievement, idx) => (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            {achievements.map((achievement, index) => (
               <div
-                key={idx}
-                className={`p-4 rounded-lg text-center transition transform hover:scale-105 ${
+                key={achievement.name}
+                className={`rounded-2xl border-2 p-4 text-center transition hover:-translate-y-0.5 ${
                   achievement.earned
-                    ? 'bg-gradient-to-b from-amber-50 to-amber-100 border-2 border-amber-300'
-                    : 'bg-gray-50 border-2 border-gray-200 opacity-60'
+                    ? 'border-amber-300 bg-gradient-to-b from-amber-50 to-amber-100'
+                    : 'border-slate-200 bg-slate-50 opacity-70'
                 }`}
               >
-                <div className="text-3xl mb-2">{achievement.icon}</div>
-                <h3 className="font-bold text-sm text-gray-900">{achievement.name}</h3>
-                <p className="text-xs text-gray-600 mt-1">{achievement.description}</p>
-                {achievement.earned && (
-                  <div className="mt-2">
-                    <span className="inline-block bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                      ✓ Earned
-                    </span>
-                  </div>
-                )}
+                <div
+                  className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-bold ${
+                    achievement.earned
+                      ? 'bg-amber-500 text-white'
+                      : `text-slate-700`
+                  }`}
+                  style={
+                    achievement.earned
+                      ? undefined
+                      : { backgroundColor: chartPalette[index % chartPalette.length] + '22' }
+                  }
+                >
+                  {achievement.badge}
+                </div>
+                <h3 className="text-sm font-bold text-slate-900">{achievement.name}</h3>
+                <p className="mt-1 text-xs text-slate-600">{achievement.description}</p>
               </div>
             ))}
           </div>
@@ -323,4 +327,66 @@ export default function AnalyticsPage() {
       </Card>
     </div>
   )
+}
+
+function MetricCard({
+  icon,
+  title,
+  value,
+  note,
+  accent,
+}: {
+  icon: ReactNode
+  title: string
+  value: string
+  note: string
+  accent: string
+}) {
+  return (
+    <Card className="border-emerald-200">
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-slate-600">{title}</p>
+            <p className={`mt-2 text-3xl font-bold ${accent}`}>{value}</p>
+            <p className="mt-1 text-xs text-slate-500">{note}</p>
+          </div>
+          {icon}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function getTierStyles(tier: string) {
+  switch (tier) {
+    case 'gold':
+      return {
+        bg: 'bg-yellow-100 border-yellow-200',
+        text: 'text-yellow-900',
+        icon: 'text-yellow-700',
+      }
+    case 'silver':
+      return {
+        bg: 'bg-slate-100 border-slate-200',
+        text: 'text-slate-900',
+        icon: 'text-slate-700',
+      }
+    case 'bronze':
+      return {
+        bg: 'bg-amber-100 border-amber-200',
+        text: 'text-amber-900',
+        icon: 'text-amber-700',
+      }
+    default:
+      return {
+        bg: 'bg-purple-100 border-purple-200',
+        text: 'text-purple-900',
+        icon: 'text-purple-700',
+      }
+  }
+}
+
+function titleCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }

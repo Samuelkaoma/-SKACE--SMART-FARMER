@@ -1,254 +1,307 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Bell, Lock, Settings, User } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Settings, Bell, Lock, User } from 'lucide-react'
-import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
+
+const REGIONS = [
+  'Lusaka',
+  'Copperbelt',
+  'Northern Region',
+  'Eastern Region',
+  'Western Region',
+  'Southern Region',
+  'Central Region',
+]
 
 export default function SettingsPage() {
   const [email, setEmail] = useState('')
-  const [farmName, setFarmName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [phone, setPhone] = useState('')
   const [region, setRegion] = useState('Lusaka')
+  const [farmSize, setFarmSize] = useState('')
+  const [yearsFarming, setYearsFarming] = useState('')
+  const [primaryCrop, setPrimaryCrop] = useState('')
+  const [primaryLivestock, setPrimaryLivestock] = useState('')
   const [notifications, setNotifications] = useState(true)
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        if (!user) {
+          return
+        }
 
         setEmail(user.email || '')
 
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
-          .select('farm_name, region, notifications_enabled')
-          .eq('user_id', user.id)
-          .single()
+          .select(
+            'first_name, last_name, phone, region, farm_size_hectares, years_farming, primary_crop, primary_livestock, notifications_enabled',
+          )
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (error) {
+          throw error
+        }
 
         if (profile) {
-          setFarmName(profile.farm_name || '')
+          setFirstName(profile.first_name || '')
+          setLastName(profile.last_name || '')
+          setPhone(profile.phone || '')
           setRegion(profile.region || 'Lusaka')
+          setFarmSize(profile.farm_size_hectares?.toString() || '')
+          setYearsFarming(profile.years_farming?.toString() || '')
+          setPrimaryCrop(profile.primary_crop || '')
+          setPrimaryLivestock(profile.primary_livestock || '')
           setNotifications(profile.notifications_enabled !== false)
         }
       } catch (error) {
-        console.log('[v0] Error loading settings:', error)
-      } finally {
-        setIsLoading(false)
+        console.error('Error loading settings:', error)
+        toast.error('Failed to load settings')
       }
     }
 
-    loadSettings()
+    void loadSettings()
   }, [supabase])
 
-  const handleSaveSettings = async () => {
+  async function handleSaveSettings() {
     setIsSaving(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          farm_name: farmName,
+      if (!user) {
+        return
+      }
+
+      const { error } = await supabase.from('profiles').upsert(
+        {
+          id: user.id,
+          first_name: firstName || null,
+          last_name: lastName || null,
+          phone: phone || null,
           region,
+          farm_size_hectares: farmSize ? Number(farmSize) : null,
+          years_farming: yearsFarming ? Number(yearsFarming) : null,
+          primary_crop: primaryCrop || null,
+          primary_livestock: primaryLivestock || null,
           notifications_enabled: notifications,
-        })
-        .eq('user_id', user.id)
+        },
+        { onConflict: 'id' },
+      )
 
-      if (error) throw error
+      if (error) {
+        throw error
+      }
 
-      toast.success('Settings saved successfully!')
+      toast.success('Profile updated successfully')
     } catch (error) {
-      console.log('[v0] Error saving settings:', error)
+      console.error('Error saving settings:', error)
       toast.error('Failed to save settings')
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleChangePassword = async () => {
+  async function handleChangePassword() {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email)
-      if (error) throw error
 
-      toast.success('Password reset email sent!')
+      if (error) {
+        throw error
+      }
+
+      toast.success('Password reset email sent')
     } catch (error) {
-      console.log('[v0] Error requesting password reset:', error)
+      console.error('Error requesting password reset:', error)
       toast.error('Failed to send reset email')
     }
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-3xl font-bold text-emerald-900">Settings</h1>
-        <p className="text-gray-500 mt-1">Manage your account and preferences</p>
-      </div>
+    <div className="space-y-6 max-w-4xl">
+      <section className="rounded-[2rem] border border-emerald-200 bg-white/90 p-6 shadow-sm shadow-emerald-100 sm:p-8">
+        <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-700">
+          Farm profile
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+          Tune the profile that powers recommendations
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+          Region, farming experience, and farm focus help the dashboard tailor guidance for both novice and experienced farmers.
+        </p>
+      </section>
 
-      {/* Profile Settings */}
       <Card className="border-emerald-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Profile Settings
+            <User className="h-5 w-5" />
+            Profile settings
           </CardTitle>
-          <CardDescription>Update your farm information</CardDescription>
+          <CardDescription>Update identity, farm focus, and experience details.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <Label htmlFor="email" className="text-sm font-medium">
-              Email Address
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              disabled
-              className="mt-2 bg-gray-50 border-gray-200"
-            />
-            <p className="text-xs text-gray-500 mt-2">Email cannot be changed</p>
-          </div>
-
-          <div>
-            <Label htmlFor="farm_name" className="text-sm font-medium">
-              Farm Name
-            </Label>
-            <Input
-              id="farm_name"
-              placeholder="Your farm name"
-              value={farmName}
-              onChange={(e) => setFarmName(e.target.value)}
-              className="mt-2 border-emerald-200"
-            />
-            <p className="text-xs text-gray-500 mt-2">The name of your farm for identification</p>
-          </div>
-
-          <div>
-            <Label htmlFor="region" className="text-sm font-medium">
-              Region/Province
-            </Label>
+        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Email">
+            <Input value={email} disabled className="bg-gray-50" />
+          </Field>
+          <Field label="Phone">
+            <Input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+260..." />
+          </Field>
+          <Field label="First name">
+            <Input value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+          </Field>
+          <Field label="Last name">
+            <Input value={lastName} onChange={(event) => setLastName(event.target.value)} />
+          </Field>
+          <Field label="Region">
             <select
-              id="region"
+              className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2"
               value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              className="mt-2 w-full px-3 py-2 border border-emerald-200 rounded-md bg-white"
+              onChange={(event) => setRegion(event.target.value)}
             >
-              <option value="Lusaka">Lusaka</option>
-              <option value="Copperbelt">Copperbelt</option>
-              <option value="Northern">Northern</option>
-              <option value="Eastern">Eastern</option>
-              <option value="Western">Western</option>
-              <option value="Southern">Southern</option>
-              <option value="Central">Central</option>
+              {REGIONS.map((regionName) => (
+                <option key={regionName} value={regionName}>
+                  {regionName}
+                </option>
+              ))}
             </select>
-            <p className="text-xs text-gray-500 mt-2">Used for weather and market data</p>
+          </Field>
+          <Field label="Farm size (ha)">
+            <Input
+              type="number"
+              step="0.1"
+              value={farmSize}
+              onChange={(event) => setFarmSize(event.target.value)}
+              placeholder="4.5"
+            />
+          </Field>
+          <Field label="Years farming">
+            <Input
+              type="number"
+              value={yearsFarming}
+              onChange={(event) => setYearsFarming(event.target.value)}
+              placeholder="2"
+            />
+          </Field>
+          <Field label="Primary crop">
+            <Input
+              value={primaryCrop}
+              onChange={(event) => setPrimaryCrop(event.target.value)}
+              placeholder="Maize"
+            />
+          </Field>
+          <Field label="Primary livestock">
+            <Input
+              value={primaryLivestock}
+              onChange={(event) => setPrimaryLivestock(event.target.value)}
+              placeholder="Cattle"
+            />
+          </Field>
+          <div className="md:col-span-2">
+            <Button
+              onClick={handleSaveSettings}
+              disabled={isSaving}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {isSaving ? 'Saving...' : 'Save profile'}
+            </Button>
           </div>
-
-          <Button
-            onClick={handleSaveSettings}
-            disabled={isSaving}
-            className="w-full bg-emerald-600 hover:bg-emerald-700"
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </Button>
         </CardContent>
       </Card>
 
-      {/* Notifications */}
       <Card className="border-emerald-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
+            <Bell className="h-5 w-5" />
             Notifications
           </CardTitle>
-          <CardDescription>Manage your notification preferences</CardDescription>
+          <CardDescription>Control whether the platform should keep surfacing alerts.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div>
-              <p className="font-medium text-gray-900">All Notifications</p>
-              <p className="text-sm text-gray-600">Receive alerts and updates</p>
+              <p className="font-medium text-slate-900">Operational alerts</p>
+              <p className="text-sm text-slate-600">Receive reminders, warnings, and guidance updates.</p>
             </div>
-            <Switch
-              checked={notifications}
-              onCheckedChange={setNotifications}
-            />
+            <Switch checked={notifications} onCheckedChange={setNotifications} />
           </div>
-
           <Button
             onClick={handleSaveSettings}
             disabled={isSaving}
-            className="w-full bg-emerald-600 hover:bg-emerald-700"
+            className="bg-emerald-600 hover:bg-emerald-700"
           >
-            Save Notification Settings
+            Save notification preferences
           </Button>
         </CardContent>
       </Card>
 
-      {/* Security */}
       <Card className="border-emerald-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Lock className="w-5 h-5" />
+            <Lock className="h-5 w-5" />
             Security
           </CardTitle>
-          <CardDescription>Manage your password and security settings</CardDescription>
+          <CardDescription>Manage your password reset flow.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-gray-600">
-            To change your password, click the button below to receive a reset email.
+          <p className="text-sm text-slate-600">
+            Send yourself a password reset link if you need to update your login credentials.
           </p>
-
-          <Button
-            onClick={handleChangePassword}
-            variant="outline"
-            className="w-full border-emerald-200"
-          >
-            Change Password
+          <Button onClick={handleChangePassword} variant="outline" className="border-emerald-200">
+            Change password
           </Button>
-
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm font-medium text-blue-900 mb-2">Security Tip</p>
-            <p className="text-xs text-blue-800">
-              Use a strong, unique password with at least 8 characters including uppercase, 
-              lowercase, numbers, and symbols.
-            </p>
-          </div>
         </CardContent>
       </Card>
 
-      {/* About */}
       <Card className="border-emerald-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            About
+            <Settings className="h-5 w-5" />
+            Product context
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm text-gray-600">
-          <div>
-            <p className="font-medium text-gray-900">SmartFarmer SKACE</p>
-            <p>Version 1.0.0</p>
-          </div>
-          <div>
-            <p className="font-medium text-gray-900">Created by</p>
-            <p>Samuel Kaoma</p>
-          </div>
-          <div>
-            <p className="font-medium text-gray-900">Purpose</p>
-            <p>Empowering Zambian farmers with intelligent farming technology</p>
-          </div>
+        <CardContent className="space-y-3 text-sm text-slate-600">
+          <p>
+            SmartFarmer SKACE is now structured as a production-minded farm operations platform with stronger schema alignment, better data capture, and more pitch-ready UX.
+          </p>
+          <p>
+            The more accurate your profile and farm records are, the more credible the dashboard guidance becomes.
+          </p>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function Field({
+  children,
+  label,
+}: {
+  children: React.ReactNode
+  label: string
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">{label}</Label>
+      {children}
     </div>
   )
 }

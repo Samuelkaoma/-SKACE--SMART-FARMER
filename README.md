@@ -1,312 +1,141 @@
 # SmartFarmer SKACE
 
-**Intelligent Agriculture Platform for Zambian Farmers**  
-*Created by Samuel Kaoma*
+SmartFarmer SKACE is a production-minded agritech web app for Zambian farmers. It combines crop records, livestock management, storage oversight, farm activity logs, weather-aware guidance, and market visibility in one platform that is designed to evolve into a fuller farmer decision-support system.
 
----
+## Pitch Summary
 
-## Overview
+SmartFarmer SKACE helps farmers move from scattered notes and reactive decisions toward one guided operating workflow. The current version is strongest as a farm operations MVP:
 
-SmartFarmer SKACE is a comprehensive, production-ready agricultural intelligence platform designed specifically for Zambian farmers. It combines AI-powered recommendations, real-time monitoring, market intelligence, and gamification to help farmers increase productivity, optimize resources, and maximize profitability.
+- Record crop, livestock, storage, and farm logbook data in a structured way.
+- Surface recommendations, field guide references, market signals, and starter playbooks.
+- Give novice farmers a clearer view of what to watch and what to do next.
+- Provide a modular codebase that can support richer disease intelligence, forecasting, and multilingual coaching over time.
 
-## Key Features
+## What The Product Does Today
 
-### 1. **AI Recommendation Engine**
-- Real-time recommendations based on farm data, weather, and market conditions
-- Disease and pest detection with prevention strategies
-- Yield prediction and optimization suggestions
-- Priority-based alerts for urgent farm issues
+- Authenticated dashboard with protected routes and server-led shell loading
+- Crop management with field size, soil, growth stage, health, disease, pest, yield, and revenue tracking
+- Livestock management with feed, water, vaccination, production, and health details
+- Storage management with quantity, value, quality, expiry, and storage condition tracking
+- Farm logbook for activities, weather, labor, expense, harvest, and observations
+- Dashboard overview with recommendations, market pulse, crop distribution, field guide entries, and recent logs
+- Analytics view for user stats, revenue, production, and progress indicators
+- Profile/settings flow aligned to the live database schema
 
-### 2. **Farm Management Dashboards**
-- **Crops Dashboard**: Track planting dates, health status, growth stage, estimated yield
-- **Livestock Dashboard**: Monitor animal health, production, and care schedules
-- **Storage Dashboard**: Manage produce inventory with expiration tracking
-- **Analytics Dashboard**: Comprehensive farm performance metrics and trends
+## Current Readiness
 
-### 3. **Gamification System**
-- Achievement badges (10+ unique achievements)
-- Points-based reward system
-- Farmer tier progression: Beginner → Bronze → Silver → Gold → Platinum
-- Real-time progress tracking and leaderboards
+This project is much closer to production quality than a prototype, but it is best described honestly as a production-minded MVP.
 
-### 4. **Market Intelligence**
-- Current commodity prices for Zambian markets
-- Demand trend analysis
-- Seasonal best-selling times
-- Revenue estimator and price alerts
+Already improved:
 
-### 5. **Real-Time Weather & Disease Monitoring**
-- Regional weather forecasts
-- Disease and pest pattern database
-- Prevention and treatment recommendations
-- Risk assessment scoring
+- Backend routes now use shared helpers, validation, and clearer error handling.
+- Dashboard access is properly guarded.
+- The app is aligned to the real Supabase schema rather than placeholder fields.
+- Frontend forms support create, edit, and delete flows across the main operational modules.
+- Public pages and product copy are now more coherent for demos and pitching.
 
-### 6. **Mobile-Responsive Design**
-- Fully optimized for mobile, tablet, and desktop
-- Smooth animations and transitions
-- Dark mode support
-- Accessibility-first design principles
+Still to do before calling it fully production-ready:
 
----
+- Install and enforce ESLint in the workspace
+- Add automated tests and CI checks
+- Introduce generated Supabase database types
+- Expand recommendations beyond rules into deeper disease and seasonal intelligence
+- Integrate external weather and market data providers
 
-## Technology Stack
+## Architecture
 
-### Backend
-- **Framework**: Next.js 16 with App Router
-- **Database**: Supabase PostgreSQL with Row-Level Security (RLS)
-- **Authentication**: Supabase Auth with email/password
-- **API Routes**: 9+ comprehensive REST endpoints
-- **Validation**: Zod schema validation
-- **Server Functions**: PostgreSQL functions for calculations
+The app now follows clearer separation of concerns:
 
-### Frontend
-- **Framework**: React 19
-- **Styling**: Tailwind CSS v4
-- **UI Components**: shadcn/ui
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Form Handling**: react-hook-form
-- **Toast Notifications**: Sonner
+- `app/`: Next.js App Router pages, layouts, and API routes
+- `components/`: UI building blocks plus dashboard and marketing sections
+- `lib/repositories/`: database access and query composition
+- `lib/services/`: business logic for dashboard and advisory behavior
+- `lib/api/`: route helpers and response/error handling
+- `lib/auth/`: server-side auth/session helpers
+- `lib/content/`: structured copy/content for the public marketing surfaces
+- `lib/types/`: schema-aligned TypeScript models
 
-### Database Schema
-10 main tables with full RLS:
-- `profiles` - User farm information
-- `crops` - Crop tracking and health
-- `livestock` - Animal management
-- `storage` - Produce inventory
-- `farm_logs` - Activity logging
-- `recommendations` - AI suggestions
-- `user_achievements` - Gamification tracking
-- `user_stats` - Points and tier progression
-- `weather_data` - Regional forecasts
-- `market_prices` - Commodity pricing
-- `disease_pest_library` - Disease/pest reference
-- `achievement_definitions` - Badge definitions
+This structure makes the codebase easier to extend without spreading business logic across pages and components.
 
----
+## Tech Stack
 
-## Project Structure
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Supabase Auth + PostgreSQL
+- Recharts
+- shadcn/ui
+- Zod
 
-```
-/app
-  /auth              - Authentication pages (login, signup, sign-up-success)
-  /dashboard         - Main dashboard with layout
-    /crops           - Crop management page
-    /livestock       - Livestock management page
-    /storage         - Storage/inventory management
-    /analytics       - Analytics and statistics
-    /settings        - User settings
-  /api               - API routes
-    /recommendations - AI recommendations endpoint
-    /achievements    - Achievement checking
-    /notifications   - User notifications
-    /market          - Market data endpoint
-  /about             - About page with creator credits
+## Local Setup
 
-/components
-  /ui                - shadcn/ui components
-  /dashboard-nav     - Navigation component
-  /dashboard-header  - Header with user info
-  /recommendations-card    - Recommendation display
-  /achievements-showcase   - Achievement display
-  /market-prices-card      - Market intelligence
-  /farm-stats              - KPI display
-  /tier-badge              - Farmer tier badge
+### 1. Install dependencies
 
-/lib
-  /supabase          - Supabase client setup
-  /farm-calculations - Utility functions for calculations
-
-/hooks
-  /use-notifications - Real-time notifications hook
-  /use-achievements  - Achievement tracking hook
-
-/scripts            - Database migration scripts
-  /001-012          - Create tables and RLS policies
-  /002b             - Additional tables (weather, market)
-  /012              - Seed mock data
-
-/styles
-  /globals.css       - Emerald theme with animations
-```
-
----
-
-## Database Features
-
-### Row-Level Security (RLS)
-All sensitive tables use RLS policies to ensure users can only access their own data.
-
-### PostgreSQL Functions
-- `calculate_crop_health()` - Real-time crop health scoring
-- `predict_yield()` - Yield estimation based on conditions
-- `generate_recommendations()` - AI-powered suggestions
-- `update_user_stats()` - Automatic stat calculation
-
-### Triggers
-- Auto-create user profile on signup
-- Auto-calculate user stats on data changes
-- Auto-check and unlock achievements
-
----
-
-## API Endpoints
-
-### Recommendations
-- `GET/POST /api/recommendations` - Fetch/create recommendations
-
-### Achievements
-- `GET/POST /api/achievements` - Fetch/unlock achievements
-
-### Notifications
-- `GET/POST /api/notifications` - Fetch/create notifications
-
-### Market Data
-- `GET /api/market` - Fetch current market prices
-
----
-
-## Color Scheme
-
-- **Primary**: Emerald (#059669) - Represents growth and agriculture
-- **Secondary**: Teal (#14B8A6) - Water and sustainability
-- **Accents**: Amber (Gold tier), Orange (Bronze), Slate (Silver)
-- **Neutrals**: White, Gray tones
-
-## Design Highlights
-
-- **Gradient backgrounds** for visual appeal
-- **Smooth animations** (fade-in, scale, slide-in)
-- **Glass morphism effects** for modern UI
-- **Responsive grid layouts** using Tailwind
-- **Interactive charts** for data visualization
-- **Mobile-first approach** with progressive enhancement
-
----
-
-## Authentication Flow
-
-1. User signs up with email/password
-2. Email confirmation required
-3. Automatic profile creation via trigger
-4. Redirect to dashboard
-5. Session management via Supabase
-
----
-
-## Getting Started
-
-### Prerequisites
-- Node.js 18+
-- Supabase account (connected)
-- Environment variables configured
-
-### Installation
 ```bash
 npm install
 ```
 
-### Environment Setup
-```
+### 2. Configure environment variables
+
+Create an `.env` file with:
+
+```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-### Run Development Server
+If you deploy publicly, also set the site URL used by metadata and auth redirects:
+
+```env
+NEXT_PUBLIC_SITE_URL=https://your-domain.example
+```
+
+### 3. Run the app
+
 ```bash
 npm run dev
 ```
 
-### Database Setup
-All SQL migrations are in `/scripts/`. Execute them in order on your Supabase database.
+## Verification Scripts
 
----
+```bash
+npm run typecheck
+npm run build
+```
 
-## Key Implementation Details
+Note: `npm run lint` is defined, but the workspace currently does not include the `eslint` package yet.
 
-### Real-Time Updates
-Uses Supabase real-time subscriptions for live notifications and alerts.
+## Database Notes
 
-### AI Recommendations
-Algorithm considers:
-- Current weather conditions
-- Crop/livestock health scores
-- Disease/pest risk patterns
-- Market price trends
-- Farm history and patterns
+The app expects the Supabase schema represented by the SQL scripts in `scripts/`. Important tables include:
 
-### Gamification Logic
-- Achievements unlock based on predefined conditions
-- Points awarded per achievement
-- Tier progression thresholds:
-  - Beginner: 0-500 pts
-  - Bronze: 500-1500 pts
-  - Silver: 1500-3000 pts
-  - Gold: 3000-5000 pts
-  - Platinum: 5000+ pts
+- `profiles`
+- `crops`
+- `livestock`
+- `storage`
+- `farm_logs`
+- `recommendations`
+- `notifications`
+- `user_stats`
+- `weather_data`
+- `market_prices`
+- `disease_pest_library`
+- `achievement_definitions`
+- `achievements`
 
----
+Run the SQL setup in Supabase before using the dashboard features.
 
-## Security Features
+## Product Direction
 
-- **Row-Level Security**: Each user's data is isolated
-- **Authentication**: Secure email/password with JWT
-- **Input Validation**: Zod schemas on all API routes
-- **Password Hashing**: Handled by Supabase Auth
-- **HTTPS**: All connections encrypted
-- **CSRF Protection**: Built-in to Next.js
+The long-term vision is to make SmartFarmer SKACE a more complete farmer success platform, especially for newer farmers. The next major upgrades should focus on:
 
----
+- richer disease diagnosis and treatment workflows
+- localized weather integrations
+- stronger trend and seasonal pattern analysis from real historical logs
+- multilingual onboarding and education
+- testing, observability, and release automation
 
-## Performance Optimizations
+## Author
 
-- Server-side rendering for fast initial load
-- Image optimization with Next.js Image
-- Component code-splitting
-- Database query optimization with indexes
-- Caching strategies with revalidateTag()
-
----
-
-## Accessibility
-
-- Semantic HTML structure
-- ARIA labels for interactive elements
-- Keyboard navigation support
-- Screen reader friendly
-- Color contrast compliance
-- Mobile accessibility
-
----
-
-## Future Enhancements
-
-- [ ] Multi-language support (Nyanja, Bemba, etc.)
-- [ ] SMS notifications for low-connectivity areas
-- [ ] Computer vision for crop disease detection
-- [ ] IoT sensor integration for real-time monitoring
-- [ ] Mobile app (React Native)
-- [ ] Cooperative/group management features
-- [ ] Financial lending integration
-- [ ] Weather API integration (third-party)
-- [ ] Predictive analytics with machine learning
-
----
-
-## Support & Credits
-
-**Creator**: Samuel Kaoma  
-**Platform**: SmartFarmer SKACE  
-**Tagline**: Intelligent Agriculture for Zambia
-
-For support or inquiries, contact the development team.
-
----
-
-## License
-
-SmartFarmer SKACE is developed by Samuel Kaoma. All rights reserved.
-
----
-
-*Built with ❤️ for the farmers of Zambia*
+Created by Samuel Kaoma.

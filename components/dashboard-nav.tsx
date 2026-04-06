@@ -1,132 +1,144 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { 
-  Leaf, 
-  Home, 
-  Wheat, 
-  Dumbbell, 
-  Box, 
+import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
+import {
   BarChart3,
-  Settings,
+  BookOpen,
+  Box,
+  Home,
+  Leaf,
   LogOut,
   Menu,
-  X
+  Settings,
+  Wheat,
+  X,
 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { useState } from 'react'
+
 import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/dashboard/crops', label: 'My Crops', icon: Wheat },
-  { href: '/dashboard/livestock', label: 'Livestock', icon: Dumbbell },
+  { href: '/dashboard/livestock', label: 'Livestock', icon: Leaf },
+  { href: '/dashboard/logbook', label: 'Logbook', icon: BookOpen },
   { href: '/dashboard/storage', label: 'Storage', icon: Box },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
 ]
 
 export function DashboardNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const supabase = createClient()
 
   const handleLogout = async () => {
-    setIsLoading(true)
-    await supabase.auth.signOut()
-    window.location.href = '/auth/login'
+    try {
+      setIsLoading(true)
+      await supabase.auth.signOut()
+      router.replace('/auth/login')
+      router.refresh()
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const isActive = (href: string) => {
-    return pathname === href || pathname.startsWith(href + '/')
-  }
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
+      <div className="fixed left-4 top-4 z-50 md:hidden">
         <Button
-          variant="outline"
+          aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
           size="icon"
-          onClick={() => setIsOpen(!isOpen)}
-          className="border-emerald-200 hover:bg-emerald-50"
+          variant="outline"
+          className="border-emerald-200 bg-white/90 shadow-sm hover:bg-emerald-50"
+          onClick={() => setIsOpen((current) => !current)}
         >
-          {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
 
-      {/* Sidebar */}
-      <nav className={`
-        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        fixed md:static top-0 left-0 h-screen w-64 bg-gradient-to-b from-emerald-900 to-emerald-800
-        border-r border-emerald-700 flex flex-col transition-transform duration-300 z-40
-      `}>
-        {/* Logo */}
-        <div className="p-6 border-b border-emerald-700">
-          <Link href="/dashboard" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-emerald-400 rounded-lg flex items-center justify-center group-hover:bg-emerald-300 transition">
-              <Leaf className="w-6 h-6 text-emerald-900" />
-            </div>
-            <div className="flex-1">
-              <h1 className="font-bold text-white text-lg">SmartFarmer</h1>
-              <p className="text-xs text-emerald-200">SKACE Edition</p>
-            </div>
-          </Link>
-        </div>
+      <nav
+        className={`
+          fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-emerald-950/20
+          bg-[linear-gradient(180deg,#052e2b_0%,#064e3b_48%,#0f766e_100%)] px-4 py-6 text-white
+          shadow-2xl transition-transform duration-300 md:static md:translate-x-0
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <Link
+          className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-4"
+          href="/dashboard"
+          onClick={() => setIsOpen(false)}
+        >
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-300 text-emerald-950 transition group-hover:bg-emerald-200">
+            <Leaf className="h-6 w-6" />
+          </div>
+          <div>
+            <p className="text-lg font-semibold">SmartFarmer</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/80">
+              SKACE Platform
+            </p>
+          </div>
+        </Link>
 
-        {/* Navigation Items */}
-        <div className="flex-1 overflow-y-auto py-6 space-y-2 px-4">
+        <div className="mt-8 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.href)
+
             return (
               <Link
                 key={item.href}
+                className={`
+                  flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition
+                  ${active
+                    ? 'bg-white text-emerald-950 shadow-lg'
+                    : 'text-emerald-50/85 hover:bg-white/10 hover:text-white'}
+                `}
                 href={item.href}
                 onClick={() => setIsOpen(false)}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-lg transition-all
-                  ${active
-                    ? 'bg-emerald-400 text-emerald-900 font-semibold shadow-lg'
-                    : 'text-emerald-100 hover:bg-emerald-700'
-                  }
-                `}
               >
-                <Icon className="w-5 h-5" />
-                <span className="hidden sm:inline">{item.label}</span>
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
               </Link>
             )
           })}
         </div>
 
-        {/* Settings & Logout */}
-        <div className="border-t border-emerald-700 p-4 space-y-2">
+        <div className="mt-auto space-y-2 border-t border-white/10 pt-4">
           <Link
+            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-emerald-50/85 transition hover:bg-white/10 hover:text-white"
             href="/dashboard/settings"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-emerald-100 hover:bg-emerald-700 transition"
+            onClick={() => setIsOpen(false)}
           >
-            <Settings className="w-5 h-5" />
-            <span className="hidden sm:inline">Settings</span>
+            <Settings className="h-5 w-5" />
+            <span>Settings</span>
           </Link>
           <button
-            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-emerald-50/85 transition hover:bg-rose-500/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isLoading}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-emerald-100 hover:bg-red-600 transition"
+            onClick={handleLogout}
+            type="button"
           >
-            <LogOut className="w-5 h-5" />
-            <span className="hidden sm:inline">{isLoading ? 'Signing out...' : 'Sign Out'}</span>
+            <LogOut className="h-5 w-5" />
+            <span>{isLoading ? 'Signing out...' : 'Sign out'}</span>
           </button>
         </div>
       </nav>
 
-      {/* Overlay for mobile */}
-      {isOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/50 z-30"
+      {isOpen ? (
+        <button
+          aria-label="Close navigation overlay"
+          className="fixed inset-0 z-30 bg-slate-950/40 md:hidden"
           onClick={() => setIsOpen(false)}
+          type="button"
         />
-      )}
+      ) : null}
     </>
   )
 }

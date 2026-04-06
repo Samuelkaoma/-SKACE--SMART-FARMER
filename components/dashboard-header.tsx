@@ -1,77 +1,63 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Bell, Search } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
-export function DashboardHeader() {
-  const [userName, setUserName] = useState<string>('Farmer')
-  const [notifications, setNotifications] = useState(0)
-  const supabase = createClient()
+interface DashboardHeaderProps {
+  unreadNotifications: number
+  userName: string
+}
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user?.email) {
-          setUserName(user.email.split('@')[0])
-        }
-
-        // Get unread notifications count
-        const { data: notifs } = await supabase
-          .from('notifications')
-          .select('id')
-          .eq('is_read', false)
-          .limit(10)
-
-        if (notifs) {
-          setNotifications(notifs.length)
-        }
-      } catch (error) {
-        console.log('[v0] Error loading header data:', error)
-      }
-    }
-
-    loadUserData()
-  }, [supabase])
-
+export function DashboardHeader({
+  unreadNotifications,
+  userName,
+}: DashboardHeaderProps) {
   return (
-    <header className="h-16 border-b border-emerald-200 bg-white/80 backdrop-blur px-6 flex items-center justify-between">
-      <div className="flex-1 max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <Input
-            placeholder="Search crops, livestock, recommendations..."
-            className="pl-10 bg-gray-50 border-gray-200"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative hover:bg-emerald-50"
-          >
-            <Bell className="w-5 h-5 text-emerald-700" />
-            {notifications > 0 && (
-              <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
-                {notifications > 9 ? '9+' : notifications}
-              </span>
-            )}
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-semibold">
-            {userName.charAt(0).toUpperCase()}
+    <header className="sticky top-0 z-20 border-b border-emerald-200/70 bg-white/85 backdrop-blur">
+      <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 md:h-20 md:flex-row md:items-center md:justify-between md:py-0">
+        <div className="w-full max-w-xl">
+          <label className="sr-only" htmlFor="dashboard-search">
+            Search across your farm records
+          </label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              id="dashboard-search"
+              className="border-emerald-200 bg-white pl-10 shadow-sm"
+              placeholder="Search crops, livestock, storage, and recommendations"
+            />
           </div>
-          <div className="hidden md:block">
-            <p className="text-sm font-semibold text-gray-900">Welcome, {userName}</p>
-            <p className="text-xs text-gray-500">Smart Farmer</p>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 md:justify-end">
+          <Button
+            className="relative border-emerald-200 hover:bg-emerald-50"
+            size="icon"
+            type="button"
+            variant="outline"
+          >
+            <Bell className="h-5 w-5 text-emerald-800" />
+            {unreadNotifications > 0 ? (
+              <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white">
+                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+              </span>
+            ) : null}
+          </Button>
+
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#16a34a_0%,#0f766e_100%)] font-semibold text-white">
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">
+                {userName}
+              </p>
+              <p className="text-xs uppercase tracking-[0.16em] text-emerald-700">
+                Smart Farmer
+              </p>
+            </div>
           </div>
         </div>
       </div>

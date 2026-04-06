@@ -1,101 +1,117 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
 
-export async function GET(request: NextRequest) {
+import { ApiError, handleRouteError, parseRequestBody } from '@/lib/api/route-helpers'
+import { requireRouteUser } from '@/lib/auth/server'
+import { calculateFarmerTier } from '@/lib/farm-calculations'
+import { getAchievementFeed } from '@/lib/services/dashboard-service'
+import { createClient } from '@/lib/supabase/server'
+
+const awardAchievementSchema = z.object({
+  achievementName: z.string().min(1),
+})
+
+export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await requireRouteUser(supabase)
+    const achievements = await getAchievementFeed({ supabase, userId: user.id })
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get user's earned achievements
-    const { data: earnedData, error: earnedError } = await supabase
-      .from('user_achievements')
-      .select('achievement_id, created_at')
-      .eq('user_id', user.id)
-
-    if (earnedError) throw earnedError
-
-    // Get all achievements
-    const { data: allData, error: allError } = await supabase
-      .from('achievements')
-      .select('*')
-      .order('created_at', { ascending: true })
-
-    if (allError) throw allError
-
-    const earnedIds = new Set(earnedData?.map(e => e.achievement_id) || [])
-
-    const achievements = allData?.map(achievement => ({
-      ...achievement,
-      earned: earnedIds.has(achievement.id)
-    })) || []
-
-    return NextResponse.json({ 
+    return NextResponse.json({
       data: achievements,
-      earnedCount: earnedIds.size 
+      earnedCount: achievements.filter((achievement) => achievement.earned).length,
     })
   } catch (error) {
-    console.log('[v0] Achievements API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch achievements' }, { status: 500 })
+    return handleRouteError(error, 'Failed to fetch achievements.')
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await requireRouteUser(supabase)
+    const { achievementName } = await parseRequestBody(request, awardAchievementSchema)
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const definitionResult = await supabase
+      .from('achievement_definitions')
+      .select('name, description, icon_name, points_reward')
+      .eq('name', achievementName)
+      .maybeSingle()
+
+    if (definitionResult.error) {
+      throw new Error(definitionResult.error.message)
     }
 
-    const body = await request.json()
-    const { achievementId } = body
+    if (!definitionResult.data) {
+      throw new ApiError(404, 'Achievement definition not found.')
+    }
 
-    // Check if already earned
-    const { data: existing } = await supabase
-      .from('user_achievements')
+    const existingResult = await supabase
+      .from('achievements')
       .select('id')
       .eq('user_id', user.id)
-      .eq('achievement_id', achievementId)
-      .single()
+      .eq('achievement_name', achievementName)
+      .eq('is_unlocked', true)
+      .maybeSingle()
 
-    if (existing) {
-      return NextResponse.json({ error: 'Already earned' }, { status: 400 })
+    if (existingResult.error) {
+      throw new Error(existingResult.error.message)
     }
 
-    // Award achievement and points
-    const { error } = await supabase.from('user_achievements').insert({
+    if (existingResult.data) {
+      throw new ApiError(409, 'Achievement already earned.')
+    }
+
+    const insertResult = await supabase.from('achievements').insert({
       user_id: user.id,
-      achievement_id: achievementId,
+      achievement_type: 'badge',
+      achievement_name: definitionResult.data.name,
+      description: definitionResult.data.description,
+      points_earned: definitionResult.data.points_reward,
+      badge_icon: definitionResult.data.icon_name,
+      tier: 'bronze',
+      progress_percentage: 100,
+      unlocked_at: new Date().toISOString(),
+      is_unlocked: true,
     })
 
-    if (error) throw error
+    if (insertResult.error) {
+      throw new Error(insertResult.error.message)
+    }
 
-    // Add points
-    const { data: stats } = await supabase
+    const statsResult = await supabase
       .from('user_stats')
-      .select('points')
-      .eq('user_id', user.id)
-      .single()
+      .select('total_points')
+      .eq('id', user.id)
+      .maybeSingle()
 
-    const newPoints = (stats?.points || 0) + 50
+    if (statsResult.error) {
+      throw new Error(statsResult.error.message)
+    }
 
-    await supabase
-      .from('user_stats')
-      .update({ points: newPoints })
-      .eq('user_id', user.id)
+    const totalPoints = (statsResult.data?.total_points ?? 0) + definitionResult.data.points_reward
+    const nextTier = calculateFarmerTier(totalPoints).tier.toLowerCase()
 
-    return NextResponse.json({ 
-      success: true, 
-      pointsEarned: 50,
-      totalPoints: newPoints 
+    const upsertResult = await supabase.from('user_stats').upsert(
+      {
+        id: user.id,
+        total_points: totalPoints,
+        current_tier: nextTier,
+      },
+      { onConflict: 'id' },
+    )
+
+    if (upsertResult.error) {
+      throw new Error(upsertResult.error.message)
+    }
+
+    return NextResponse.json({
+      success: true,
+      pointsEarned: definitionResult.data.points_reward,
+      totalPoints,
+      tier: nextTier,
     })
   } catch (error) {
-    console.log('[v0] Error awarding achievement:', error)
-    return NextResponse.json({ error: 'Failed to award achievement' }, { status: 500 })
+    return handleRouteError(error, 'Failed to award achievement.')
   }
 }

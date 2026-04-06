@@ -1,54 +1,40 @@
-import { createClient } from '@/lib/supabase/server'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
 
-export async function GET(request: NextRequest) {
+import { handleRouteError, parseRequestBody } from '@/lib/api/route-helpers'
+import { requireRouteUser } from '@/lib/auth/server'
+import {
+  getNotifications,
+  markNotificationAsRead,
+} from '@/lib/repositories/farm-repository'
+import { createClient } from '@/lib/supabase/server'
+
+const markNotificationSchema = z.object({
+  notificationId: z.string().min(1),
+})
+
+export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20)
-
-    if (error) throw error
+    const user = await requireRouteUser(supabase)
+    const data = await getNotifications(supabase, user.id, 20)
 
     return NextResponse.json({ data })
   } catch (error) {
-    console.log('[v0] Notifications API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 })
+    return handleRouteError(error, 'Failed to fetch notifications.')
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await requireRouteUser(supabase)
+    const { notificationId } = await parseRequestBody(request, markNotificationSchema)
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { notificationId } = body
-
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notificationId)
-      .eq('user_id', user.id)
-
-    if (error) throw error
+    await markNotificationAsRead(supabase, user.id, notificationId)
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.log('[v0] Error updating notification:', error)
-    return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 })
+    return handleRouteError(error, 'Failed to update notification.')
   }
 }

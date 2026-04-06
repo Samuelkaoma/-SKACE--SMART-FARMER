@@ -1,353 +1,661 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react'
+import {
+  Edit2,
+  Heart,
+  Plus,
+  Save,
+  ShieldCheck,
+  Syringe,
+  Trash2,
+  X,
+} from 'lucide-react'
+import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Trash2, Edit2, Heart } from 'lucide-react'
-import { toast } from 'sonner'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Textarea } from '@/components/ui/textarea'
+import { createClient } from '@/lib/supabase/client'
+import type { LivestockRecord } from '@/lib/types/farm'
 
-interface LivestockRecord {
-  id: string
-  type: string
+const ANIMAL_TYPES = ['Cattle', 'Goats', 'Sheep', 'Pigs', 'Chickens', 'Ducks', 'Rabbits', 'Bees']
+const HEALTH_STATUSES = ['healthy', 'sick', 'vaccinated', 'recovering']
+const PRODUCTION_TYPES = ['meat', 'dairy', 'eggs', 'wool', 'honey']
+
+type LivestockFormState = {
+  animal_type: string
   breed: string
-  count: number
-  acquired_date: string
-  health_status: 'excellent' | 'good' | 'fair' | 'poor'
-  weight_kg: number
+  quantity: string
+  average_weight_kg: string
+  acquisition_date: string
+  health_status: string
+  last_vaccinated: string
+  next_vaccination_due: string
+  feed_type: string
+  daily_feed_quantity_kg: string
+  water_liters_per_day: string
+  shelter_type: string
+  space_per_animal_sqm: string
+  production_type: string
+  monthly_production: string
+  production_unit: string
+  estimated_value: string
   notes: string
 }
 
-const LIVESTOCK_TYPES = [
-  'Cattle',
-  'Goats',
-  'Sheep',
-  'Pigs',
-  'Chickens',
-  'Ducks',
-  'Rabbits',
-  'Bees',
-]
+const emptyForm: LivestockFormState = {
+  animal_type: '',
+  breed: '',
+  quantity: '',
+  average_weight_kg: '',
+  acquisition_date: '',
+  health_status: 'healthy',
+  last_vaccinated: '',
+  next_vaccination_due: '',
+  feed_type: '',
+  daily_feed_quantity_kg: '',
+  water_liters_per_day: '',
+  shelter_type: '',
+  space_per_animal_sqm: '',
+  production_type: '',
+  monthly_production: '',
+  production_unit: '',
+  estimated_value: '',
+  notes: '',
+}
 
-const productionData = [
-  { week: 'W1', eggs: 120, meat: 45, milk: 200 },
-  { week: 'W2', eggs: 135, meat: 48, milk: 210 },
-  { week: 'W3', eggs: 142, meat: 50, milk: 215 },
-  { week: 'W4', eggs: 138, meat: 52, milk: 220 },
-]
+function numberOrNull(value: string) {
+  if (!value) {
+    return null
+  }
+
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? null : parsed
+}
 
 export default function LivestockPage() {
   const [livestock, setLivestock] = useState<LivestockRecord[]>([])
+  const [formData, setFormData] = useState<LivestockFormState>(emptyForm)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isAdding, setIsAdding] = useState(false)
-  const [formData, setFormData] = useState({
-    type: '',
-    breed: '',
-    count: '',
-    acquired_date: '',
-    health_status: 'good',
-    weight_kg: '',
-  })
+  const [isSaving, setIsSaving] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
-    loadLivestock()
+    void loadLivestock()
   }, [])
 
-  const loadLivestock = async () => {
+  async function loadLivestock() {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        return
+      }
 
       const { data, error } = await supabase
         .from('livestock')
-        .select('*')
+        .select(
+          'id, animal_type, breed, quantity, average_weight_kg, acquisition_date, health_status, last_vaccinated, next_vaccination_due, feed_type, daily_feed_quantity_kg, water_liters_per_day, shelter_type, space_per_animal_sqm, mortality_count, production_type, monthly_production, production_unit, estimated_value, notes, created_at',
+        )
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setLivestock(data || [])
+      if (error) {
+        throw error
+      }
+
+      setLivestock((data ?? []) as LivestockRecord[])
     } catch (error) {
-      console.log('[v0] Error loading livestock:', error)
+      console.error('Error loading livestock:', error)
       toast.error('Failed to load livestock')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAddLivestock = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsAdding(true)
+  function resetForm() {
+    setFormData(emptyForm)
+    setEditingId(null)
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    setIsSaving(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-      const { error } = await supabase.from('livestock').insert({
+      if (!user) {
+        return
+      }
+
+      const payload = {
         user_id: user.id,
-        type: formData.type,
-        breed: formData.breed,
-        count: parseInt(formData.count),
-        acquired_date: formData.acquired_date,
+        animal_type: formData.animal_type,
+        breed: formData.breed || null,
+        quantity: numberOrNull(formData.quantity),
+        average_weight_kg: numberOrNull(formData.average_weight_kg),
+        acquisition_date: formData.acquisition_date || null,
         health_status: formData.health_status,
-        weight_kg: parseFloat(formData.weight_kg),
-        notes: '',
-      })
+        last_vaccinated: formData.last_vaccinated || null,
+        next_vaccination_due: formData.next_vaccination_due || null,
+        feed_type: formData.feed_type || null,
+        daily_feed_quantity_kg: numberOrNull(formData.daily_feed_quantity_kg),
+        water_liters_per_day: numberOrNull(formData.water_liters_per_day),
+        shelter_type: formData.shelter_type || null,
+        space_per_animal_sqm: numberOrNull(formData.space_per_animal_sqm),
+        production_type: formData.production_type || null,
+        monthly_production: numberOrNull(formData.monthly_production),
+        production_unit: formData.production_unit || null,
+        estimated_value: numberOrNull(formData.estimated_value),
+        notes: formData.notes || null,
+      }
 
-      if (error) throw error
+      const result = editingId
+        ? await supabase.from('livestock').update(payload).eq('id', editingId).eq('user_id', user.id)
+        : await supabase.from('livestock').insert(payload)
 
-      toast.success('Livestock record added!')
-      setFormData({ type: '', breed: '', count: '', acquired_date: '', health_status: 'good', weight_kg: '' })
-      loadLivestock()
+      if (result.error) {
+        throw result.error
+      }
+
+      toast.success(editingId ? 'Livestock updated successfully' : 'Livestock added successfully')
+      resetForm()
+      await loadLivestock()
     } catch (error) {
-      console.log('[v0] Error adding livestock:', error)
-      toast.error('Failed to add livestock')
+      console.error('Error saving livestock:', error)
+      toast.error('Failed to save livestock')
     } finally {
-      setIsAdding(false)
+      setIsSaving(false)
     }
   }
 
-  const handleDeleteLivestock = async (id: string) => {
-    if (!confirm('Are you sure?')) return
+  function handleEdit(record: LivestockRecord) {
+    setEditingId(record.id)
+    setFormData({
+      animal_type: record.animal_type,
+      breed: record.breed ?? '',
+      quantity: record.quantity?.toString() ?? '',
+      average_weight_kg: record.average_weight_kg?.toString() ?? '',
+      acquisition_date: record.acquisition_date ?? '',
+      health_status: record.health_status ?? 'healthy',
+      last_vaccinated: record.last_vaccinated ?? '',
+      next_vaccination_due: record.next_vaccination_due ?? '',
+      feed_type: record.feed_type ?? '',
+      daily_feed_quantity_kg: record.daily_feed_quantity_kg?.toString() ?? '',
+      water_liters_per_day: record.water_liters_per_day?.toString() ?? '',
+      shelter_type: record.shelter_type ?? '',
+      space_per_animal_sqm: record.space_per_animal_sqm?.toString() ?? '',
+      production_type: record.production_type ?? '',
+      monthly_production: record.monthly_production?.toString() ?? '',
+      production_unit: record.production_unit ?? '',
+      estimated_value: record.estimated_value?.toString() ?? '',
+      notes: record.notes ?? '',
+    })
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this livestock record?')) {
+      return
+    }
 
     try {
       const { error } = await supabase.from('livestock').delete().eq('id', id)
-      if (error) throw error
 
-      toast.success('Livestock record deleted')
-      loadLivestock()
+      if (error) {
+        throw error
+      }
+
+      toast.success('Livestock deleted')
+      await loadLivestock()
     } catch (error) {
-      console.log('[v0] Error deleting livestock:', error)
-      toast.error('Failed to delete')
+      console.error('Error deleting livestock:', error)
+      toast.error('Failed to delete livestock')
     }
   }
 
-  const getHealthColor = (status: string) => {
-    switch (status) {
-      case 'excellent':
-        return 'bg-green-100 text-green-800'
-      case 'good':
-        return 'bg-emerald-100 text-emerald-800'
-      case 'fair':
-        return 'bg-yellow-100 text-yellow-800'
-      default:
-        return 'bg-red-100 text-red-800'
+  const totalAnimals = livestock.reduce((sum, item) => sum + (item.quantity ?? 0), 0)
+  const vaccinationDue = livestock.filter((item) => {
+    if (!item.next_vaccination_due) {
+      return false
     }
-  }
 
-  const totalAnimals = livestock.reduce((sum, item) => sum + item.count, 0)
+    const days = Math.floor(
+      (new Date(item.next_vaccination_due).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+    )
+
+    return days >= 0 && days <= 10
+  }).length
+  const sickAnimals = livestock.filter((item) =>
+    ['sick', 'recovering'].includes((item.health_status ?? '').toLowerCase()),
+  ).length
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-emerald-900">Livestock Management</h1>
-          <p className="text-gray-500 mt-1">Monitor health and production of your animals</p>
-        </div>
+      <section className="rounded-[2rem] border border-emerald-200 bg-white/90 p-6 shadow-sm shadow-emerald-100 sm:p-8">
+        <p className="text-sm font-medium uppercase tracking-[0.18em] text-emerald-700">
+          Livestock operations
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+          Record health, vaccination, feed, and production signals
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+          Strong livestock tracking gives the app a better chance of spotting upcoming vaccination risk, feeding issues, and production changes.
+        </p>
+      </section>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <MetricCard label="Animals tracked" value={`${totalAnimals}`} />
+        <MetricCard label="Groups" value={`${livestock.length}`} />
+        <MetricCard label="Vaccination due" value={`${vaccinationDue}`} tone="accent" />
+        <MetricCard label="Need attention" value={`${sickAnimals}`} tone="warning" />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-emerald-200">
-          <CardContent className="pt-6">
-            <p className="text-gray-600 text-sm">Total Animals</p>
-            <p className="text-3xl font-bold text-emerald-700">{totalAnimals}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-teal-200">
-          <CardContent className="pt-6">
-            <p className="text-gray-600 text-sm">Records</p>
-            <p className="text-3xl font-bold text-teal-700">{livestock.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-amber-200">
-          <CardContent className="pt-6">
-            <p className="text-gray-600 text-sm">Avg Health</p>
-            <p className="text-3xl font-bold text-amber-700">Good</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Add Form */}
       <Card className="border-emerald-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            Add Livestock Record
+            <Plus className="h-5 w-5" />
+            {editingId ? 'Update livestock record' : 'Add livestock record'}
           </CardTitle>
+          <CardDescription>
+            Capture herd quantity, health, vaccination, feed, and production details in one place.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAddLivestock} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label className="text-sm">Type *</Label>
+          <form className="grid grid-cols-1 gap-4 md:grid-cols-4" onSubmit={handleSubmit}>
+            <Field label="Animal type" required>
               <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2"
+                value={formData.animal_type}
+                onChange={(event) => setFormData({ ...formData, animal_type: event.target.value })}
                 required
-                className="mt-2 w-full px-3 py-2 border border-emerald-200 rounded-md"
               >
-                <option value="">Select type</option>
-                {LIVESTOCK_TYPES.map(type => (
-                  <option key={type} value={type}>{type}</option>
+                <option value="">Select animal type</option>
+                {ANIMAL_TYPES.map((animalType) => (
+                  <option key={animalType} value={animalType}>
+                    {animalType}
+                  </option>
                 ))}
               </select>
-            </div>
-
-            <div>
-              <Label className="text-sm">Breed *</Label>
+            </Field>
+            <Field label="Breed">
               <Input
-                placeholder="Breed name"
                 value={formData.breed}
-                onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
-                required
-                className="mt-2 border-emerald-200"
+                onChange={(event) => setFormData({ ...formData, breed: event.target.value })}
+                placeholder="Boran"
               />
-            </div>
-
-            <div>
-              <Label className="text-sm">Count *</Label>
+            </Field>
+            <Field label="Quantity" required>
               <Input
                 type="number"
-                placeholder="Number of animals"
-                value={formData.count}
-                onChange={(e) => setFormData({ ...formData, count: e.target.value })}
+                value={formData.quantity}
+                onChange={(event) => setFormData({ ...formData, quantity: event.target.value })}
+                placeholder="20"
                 required
-                className="mt-2 border-emerald-200"
               />
-            </div>
-
-            <div>
-              <Label className="text-sm">Acquired Date *</Label>
-              <Input
-                type="date"
-                value={formData.acquired_date}
-                onChange={(e) => setFormData({ ...formData, acquired_date: e.target.value })}
-                required
-                className="mt-2 border-emerald-200"
-              />
-            </div>
-
-            <div>
-              <Label className="text-sm">Health Status</Label>
-              <select
-                value={formData.health_status}
-                onChange={(e) => setFormData({ ...formData, health_status: e.target.value })}
-                className="mt-2 w-full px-3 py-2 border border-emerald-200 rounded-md"
-              >
-                <option value="excellent">Excellent</option>
-                <option value="good">Good</option>
-                <option value="fair">Fair</option>
-                <option value="poor">Poor</option>
-              </select>
-            </div>
-
-            <div>
-              <Label className="text-sm">Avg Weight (kg)</Label>
+            </Field>
+            <Field label="Average weight (kg)">
               <Input
                 type="number"
                 step="0.1"
-                placeholder="50"
-                value={formData.weight_kg}
-                onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value })}
-                className="mt-2 border-emerald-200"
+                value={formData.average_weight_kg}
+                onChange={(event) =>
+                  setFormData({ ...formData, average_weight_kg: event.target.value })
+                }
+                placeholder="180"
               />
-            </div>
-
-            <div className="flex items-end">
-              <Button 
-                type="submit" 
-                disabled={isAdding}
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
+            </Field>
+            <Field label="Acquisition date">
+              <Input
+                type="date"
+                value={formData.acquisition_date}
+                onChange={(event) =>
+                  setFormData({ ...formData, acquisition_date: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="Health status">
+              <select
+                className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2"
+                value={formData.health_status}
+                onChange={(event) => setFormData({ ...formData, health_status: event.target.value })}
               >
-                {isAdding ? 'Adding...' : 'Add Record'}
+                {HEALTH_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Last vaccinated">
+              <Input
+                type="date"
+                value={formData.last_vaccinated}
+                onChange={(event) =>
+                  setFormData({ ...formData, last_vaccinated: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="Next vaccination due">
+              <Input
+                type="date"
+                value={formData.next_vaccination_due}
+                onChange={(event) =>
+                  setFormData({ ...formData, next_vaccination_due: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="Feed type">
+              <Input
+                value={formData.feed_type}
+                onChange={(event) => setFormData({ ...formData, feed_type: event.target.value })}
+                placeholder="Hay and concentrate"
+              />
+            </Field>
+            <Field label="Daily feed (kg)">
+              <Input
+                type="number"
+                step="0.1"
+                value={formData.daily_feed_quantity_kg}
+                onChange={(event) =>
+                  setFormData({ ...formData, daily_feed_quantity_kg: event.target.value })
+                }
+                placeholder="4"
+              />
+            </Field>
+            <Field label="Water (liters/day)">
+              <Input
+                type="number"
+                step="0.1"
+                value={formData.water_liters_per_day}
+                onChange={(event) =>
+                  setFormData({ ...formData, water_liters_per_day: event.target.value })
+                }
+                placeholder="25"
+              />
+            </Field>
+            <Field label="Shelter type">
+              <Input
+                value={formData.shelter_type}
+                onChange={(event) => setFormData({ ...formData, shelter_type: event.target.value })}
+                placeholder="Covered pen"
+              />
+            </Field>
+            <Field label="Space per animal (sqm)">
+              <Input
+                type="number"
+                step="0.1"
+                value={formData.space_per_animal_sqm}
+                onChange={(event) =>
+                  setFormData({ ...formData, space_per_animal_sqm: event.target.value })
+                }
+                placeholder="3.5"
+              />
+            </Field>
+            <Field label="Production type">
+              <select
+                className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2"
+                value={formData.production_type}
+                onChange={(event) =>
+                  setFormData({ ...formData, production_type: event.target.value })
+                }
+              >
+                <option value="">Select production type</option>
+                {PRODUCTION_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Monthly production">
+              <Input
+                type="number"
+                step="0.1"
+                value={formData.monthly_production}
+                onChange={(event) =>
+                  setFormData({ ...formData, monthly_production: event.target.value })
+                }
+                placeholder="320"
+              />
+            </Field>
+            <Field label="Production unit">
+              <Input
+                value={formData.production_unit}
+                onChange={(event) =>
+                  setFormData({ ...formData, production_unit: event.target.value })
+                }
+                placeholder="liters, eggs, kg"
+              />
+            </Field>
+            <Field label="Estimated value (ZMW)">
+              <Input
+                type="number"
+                step="0.1"
+                value={formData.estimated_value}
+                onChange={(event) =>
+                  setFormData({ ...formData, estimated_value: event.target.value })
+                }
+                placeholder="25000"
+              />
+            </Field>
+            <div className="md:col-span-4">
+              <Field label="Notes">
+                <Textarea
+                  value={formData.notes}
+                  onChange={(event) => setFormData({ ...formData, notes: event.target.value })}
+                  placeholder="Add symptoms, feeding changes, mortality concerns, or production observations."
+                />
+              </Field>
+            </div>
+            <div className="flex flex-wrap gap-3 md:col-span-4">
+              <Button className="bg-emerald-600 hover:bg-emerald-700" disabled={isSaving} type="submit">
+                {editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                {isSaving ? 'Saving...' : editingId ? 'Save livestock changes' : 'Add livestock'}
               </Button>
+              {editingId ? (
+                <Button type="button" variant="outline" onClick={resetForm}>
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel edit
+                </Button>
+              ) : null}
             </div>
           </form>
         </CardContent>
       </Card>
 
-      {/* Production Chart */}
-      <Card className="border-emerald-200">
-        <CardHeader>
-          <CardTitle>Production Trends</CardTitle>
-          <CardDescription>Weekly production metrics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={productionData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="week" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip contentStyle={{ backgroundColor: '#f3f4f6', border: 'none' }} />
-              <Line type="monotone" dataKey="eggs" stroke="#f59e0b" strokeWidth={2} />
-              <Line type="monotone" dataKey="milk" stroke="#10b981" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Livestock List */}
       <div>
-        <h2 className="text-xl font-bold text-emerald-900 mb-4">Your Livestock ({livestock.length})</h2>
-        {livestock.length === 0 ? (
-          <Card className="border-emerald-200 text-center py-12">
-            <Heart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No livestock records yet</p>
+        <h2 className="mb-4 text-xl font-bold text-emerald-900">Livestock records</h2>
+        {isLoading ? (
+          <Card className="border-emerald-200 p-8 text-center text-slate-500">Loading livestock...</Card>
+        ) : livestock.length === 0 ? (
+          <Card className="border-emerald-200 py-12 text-center">
+            <Heart className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+            <p className="text-gray-500">No livestock records yet. Add a herd or flock to start tracking health and vaccination patterns.</p>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {livestock.map((animal) => (
-              <Card key={animal.id} className="border-emerald-200 hover:shadow-lg transition">
-                <CardContent className="pt-6">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {livestock.map((record) => {
+              const vaccinationDueSoon = (() => {
+                if (!record.next_vaccination_due) {
+                  return false
+                }
+
+                const days = Math.floor(
+                  (new Date(record.next_vaccination_due).getTime() - Date.now()) /
+                    (1000 * 60 * 60 * 24),
+                )
+
+                return days >= 0 && days <= 10
+              })()
+
+              return (
+                <Card key={record.id} className="border-emerald-200 shadow-sm shadow-emerald-100">
+                  <CardContent className="space-y-4 pt-6">
+                    <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h3 className="font-bold text-lg text-emerald-900">{animal.type}</h3>
-                        <p className="text-sm text-gray-500">{animal.breed}</p>
+                        <h3 className="text-lg font-semibold text-slate-900">{record.animal_type}</h3>
+                        <p className="text-sm text-slate-500">
+                          {record.breed ?? 'Breed not recorded'}
+                        </p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${getHealthColor(animal.health_status)}`}>
-                        {animal.health_status}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <StatusPill label={record.health_status ?? 'unknown'} tone="default" />
+                        {vaccinationDueSoon ? (
+                          <StatusPill label="Vaccination due" tone="accent" />
+                        ) : null}
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div>
-                        <p className="text-gray-500">Count</p>
-                        <p className="font-bold text-emerald-700">{animal.count}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Weight</p>
-                        <p className="font-bold text-emerald-700">{animal.weight_kg}kg</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Acquired</p>
-                        <p className="font-bold text-emerald-700 text-xs">{new Date(animal.acquired_date).toLocaleDateString()}</p>
-                      </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                      <InfoPill label="Quantity" value={`${record.quantity ?? 0}`} />
+                      <InfoPill label="Weight" value={`${record.average_weight_kg ?? 0} kg`} />
+                      <InfoPill
+                        label="Production"
+                        value={`${record.monthly_production ?? 0} ${record.production_unit ?? ''}`.trim()}
+                      />
+                      <InfoPill label="Value" value={`ZMW ${record.estimated_value ?? 0}`} />
                     </div>
 
-                    <div className="flex gap-2 pt-2 border-t border-emerald-100">
-                      <Button size="sm" variant="outline" className="flex-1 border-emerald-200">
-                        <Edit2 className="w-4 h-4" />
+                    <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                      <p>
+                        <span className="font-semibold text-slate-900">Feed:</span>{' '}
+                        {record.feed_type ?? 'Not recorded'}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-900">Water:</span>{' '}
+                        {record.water_liters_per_day ?? 0} L/day
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-900">Last vaccinated:</span>{' '}
+                        {record.last_vaccinated ?? 'Not recorded'}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-slate-900">Next due:</span>{' '}
+                        {record.next_vaccination_due ?? 'Not recorded'}
+                      </p>
+                    </div>
+
+                    {record.notes ? (
+                      <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+                        {record.notes}
+                      </p>
+                    ) : null}
+
+                    <div className="flex gap-2 border-t border-emerald-100 pt-3">
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEdit(record)}>
+                        <Edit2 className="mr-2 h-4 w-4" />
+                        Edit
                       </Button>
                       <Button
-                        size="sm"
                         variant="outline"
+                        size="sm"
                         className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
-                        onClick={() => handleDeleteLivestock(animal.id)}
+                        onClick={() => handleDelete(record.id)}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
                       </Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+function Field({
+  children,
+  label,
+  required,
+}: {
+  children: ReactNode
+  label: string
+  required?: boolean
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">
+        {label}
+        {required ? ' *' : ''}
+      </Label>
+      {children}
+    </div>
+  )
+}
+
+function MetricCard({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string
+  value: string
+  tone?: 'default' | 'warning' | 'accent'
+}) {
+  const styles = {
+    default: 'border-emerald-200 bg-white text-emerald-900',
+    warning: 'border-rose-200 bg-rose-50 text-rose-900',
+    accent: 'border-amber-200 bg-amber-50 text-amber-900',
+  }[tone]
+
+  return (
+    <Card className={styles}>
+      <CardContent className="pt-6">
+        <p className="text-sm opacity-70">{label}</p>
+        <p className="mt-2 text-3xl font-bold">{value}</p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function InfoPill({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-50 px-3 py-2">
+      <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-slate-900">{value}</p>
+    </div>
+  )
+}
+
+function StatusPill({
+  label,
+  tone,
+}: {
+  label: string
+  tone: 'default' | 'accent'
+}) {
+  const styles =
+    tone === 'accent'
+      ? 'bg-amber-50 text-amber-700'
+      : label === 'healthy' || label === 'vaccinated'
+        ? 'bg-emerald-50 text-emerald-700'
+        : 'bg-rose-50 text-rose-700'
+
+  const Icon = tone === 'accent' ? Syringe : ShieldCheck
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${styles}`}>
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </span>
   )
 }
